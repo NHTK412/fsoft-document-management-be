@@ -1,5 +1,7 @@
 package com.example.document_management.entity;
 
+import com.example.document_management.enums.ProjectMemberRoleEnum;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -22,5 +24,6 @@ public class ProjectMember {
     @Column(nullable = false)
     private Long userId;
 
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private ProjectMemberRoleEnum role;
 }

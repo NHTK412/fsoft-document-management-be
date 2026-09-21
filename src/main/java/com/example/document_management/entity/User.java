@@ -1,5 +1,7 @@
 package com.example.document_management.entity;
 
+import com.example.document_management.enums.UserRoleEnum;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -24,5 +26,6 @@ public class User {
 
     private String fullName;
 
-    private String role;
+    @Enumerated(EnumType.STRING)
+    private UserRoleEnum role;
 }

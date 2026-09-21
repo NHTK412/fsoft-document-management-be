@@ -1,9 +1,7 @@
 package com.example.document_management.dto.response;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.example.document_management.enums.UserRoleEnum;
+import lombok.*;
 
 @Data
 @Builder
@@ -13,4 +11,5 @@ public class UserResponse {
     private Long id;
     private String email;
     private String fullName;
+    private UserRoleEnum role;
 }
