@@ -12,8 +12,8 @@ public class OpenApiConfig {
     public OpenAPI customOpenAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Document Management API")
+                        .title("API Quản lý tài liệu")
                         .version("1.0")
-                        .description("API Documentation for Document Management System"));
+                        .description("Tài liệu hướng dẫn sử dụng API"));
     }
 }
