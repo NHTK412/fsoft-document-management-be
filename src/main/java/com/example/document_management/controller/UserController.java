@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "Profile", description = "Quản lý thông tin tài khoản cá nhân")
+@Tag(name = "2. Profile", description = "Quản lý thông tin tài khoản cá nhân")
 @SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
