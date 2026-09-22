@@ -1,5 +1,7 @@
 package com.example.document_management.entity;
 
+import org.hibernate.annotations.SoftDelete;
+
 import com.example.document_management.enums.UserRoleEnum;
 
 import jakarta.persistence.*;
@@ -12,6 +14,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@SoftDelete
 public class User {
 
     @Id
@@ -25,6 +28,9 @@ public class User {
     private String password;
 
     private String fullName;
+
+    @Builder.Default
+    private boolean isActive = true;
 
     @Enumerated(EnumType.STRING)
     private UserRoleEnum role;

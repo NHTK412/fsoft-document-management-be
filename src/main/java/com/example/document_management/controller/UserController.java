@@ -26,7 +26,7 @@ public class UserController {
     @Operation(summary = "Lấy thông tin cá nhân của người dùng đang đăng nhập")
     public ResponseEntity<ApiResponse<UserResponse>> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
         UserResponse user = authService.getCurrentUserProfile(userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success(user, "Lấy thông tin thành công!"));
+        return ResponseEntity.ok(ApiResponse.success(200, user, "Lấy thông tin thành công!"));
     }
 
     @PutMapping("/me")
@@ -35,6 +35,6 @@ public class UserController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestBody UpdateProfileRequest request) {
         UserResponse user = authService.updateProfile(userDetails.getUsername(), request);
-        return ResponseEntity.ok(ApiResponse.success(user, "Cập nhật thông tin thành công!"));
+        return ResponseEntity.ok(ApiResponse.success(200, user, "Cập nhật thông tin thành công!"));
     }
 }
