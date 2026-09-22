@@ -61,16 +61,19 @@ public class AdminUserController {
 
     @PatchMapping("/{userId}/status")
     @Operation(summary = "Khóa hoặc kích hoạt lại tài khoản user", description = "Admin")
-    public ResponseEntity<ApiResponse<UserResponse>> changeStatus(@PathVariable Long userId) {
-        UserResponse user = userService.changeStatus(userId);
+    public ResponseEntity<ApiResponse<UserResponse>> changeStatus(
+            @PathVariable Long userId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails adminDetails) {
+        UserResponse user = userService.changeStatus(userId, adminDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, user, "Thay đổi trạng thái thành công!"));
     }
 
     @DeleteMapping("/{userId}")
     @Operation(summary = "Xóa tài khoản người dùng khỏi hệ thống", description = "Admin")
-    public ResponseEntity<ApiResponse<Void>> deleteUser(@PathVariable Long userId) {
-        userService.deleteUser(userId);
+    public ResponseEntity<ApiResponse<Void>> deleteUser(
+            @PathVariable Long userId,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal org.springframework.security.core.userdetails.UserDetails adminDetails) {
+        userService.deleteUser(userId, adminDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, null, "Xóa tài khoản thành công!"));
     }
-
 }

@@ -33,7 +33,7 @@ public class UserController {
     @Operation(summary = "Cập nhật thông tin cá nhân (họ tên, đổi mật khẩu)")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody UpdateProfileRequest request) {
+            @jakarta.validation.Valid @RequestBody UpdateProfileRequest request) {
         UserResponse user = authService.updateProfile(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.success(200, user, "Cập nhật thông tin thành công!"));
     }

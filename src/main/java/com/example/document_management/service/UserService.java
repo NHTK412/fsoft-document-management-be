@@ -35,16 +35,22 @@ public class UserService {
         return mapToUserResponse(userRepository.save(user));
     }
 
-    public UserResponse changeStatus(Long userId) {
+    public UserResponse changeStatus(Long userId, String currentAdminEmail) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với id: " + userId));
+        if (user.getEmail().equalsIgnoreCase(currentAdminEmail)) {
+            throw new IllegalArgumentException("Không thể tự khóa tài khoản của chính mình!");
+        }
         user.setActive(!user.isActive());
         return mapToUserResponse(userRepository.save(user));
     }
 
-    public void deleteUser(Long userId) {
+    public void deleteUser(Long userId, String currentAdminEmail) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với id: " + userId));
+        if (user.getEmail().equalsIgnoreCase(currentAdminEmail)) {
+            throw new IllegalArgumentException("Không thể tự xóa tài khoản của chính mình!");
+        }
         userRepository.delete(user);
     }
 
@@ -54,6 +60,7 @@ public class UserService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole())
+                .isActive(user.isActive())
                 .build();
     }
 }

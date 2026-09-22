@@ -91,6 +91,9 @@ public class AuthService {
         }
 
         if (request.getNewPassword() != null && !request.getNewPassword().isBlank()) {
+            if (request.getNewPassword().length() < 6) {
+                throw new IllegalArgumentException("Mật khẩu mới phải từ 6 ký tự trở lên!");
+            }
             if (request.getCurrentPassword() == null || !passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
                 throw new IllegalArgumentException("Mật khẩu hiện tại không chính xác!");
             }
@@ -106,6 +109,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole())
+                .isActive(user.isActive())
                 .build();
     }
 }
