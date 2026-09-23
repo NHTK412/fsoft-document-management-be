@@ -35,3 +35,6 @@ build/
 ### Docs_Private ###
 docs_private/
 
+### Environment & Config Files ###
+src/main/resources/application.properties
+
