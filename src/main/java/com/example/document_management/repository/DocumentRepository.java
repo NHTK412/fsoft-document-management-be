@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface DocumentRepository extends JpaRepository<DocumentMetadata, Long> {
     List<DocumentMetadata> findByProjectId(Long projectId);
+    long countByProjectId(Long projectId);
+    void deleteByProjectId(Long projectId);
 }

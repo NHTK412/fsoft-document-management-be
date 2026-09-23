@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ProjectCreateRequest {
+public class ProjectUpdateRequest {
     @NotBlank(message = "Tên dự án không được để trống")
     private String name;
     private String description;

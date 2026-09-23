@@ -6,7 +6,9 @@ import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
-@Table(name = "project_members")
+@Table(name = "project_members", uniqueConstraints = {
+    @UniqueConstraint(name = "uk_project_user", columnNames = {"project_id", "user_id"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,11 +20,13 @@ public class ProjectMember {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
-    private Long projectId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
 
-    @Column(nullable = false)
-    private Long userId;
+    @ManyToOne()
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
     @Enumerated(EnumType.STRING)
     private ProjectMemberRoleEnum role;

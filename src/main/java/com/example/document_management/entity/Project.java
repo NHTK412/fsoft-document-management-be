@@ -1,5 +1,10 @@
 package com.example.document_management.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+
+import com.example.document_management.enums.ProjectMemberRoleEnum;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,5 +26,20 @@ public class Project {
 
     private String description;
 
-    private Long ownerId;
+    @ManyToOne()
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
+
+    @Builder.Default
+    @OneToMany(mappedBy = "project", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ProjectMember> projectMembers = new ArrayList<>();
+
+    public void addMember(User user, ProjectMemberRoleEnum role) {
+        ProjectMember member = ProjectMember.builder()
+                .project(this)
+                .user(user)
+                .role(role)
+                .build();
+        this.projectMembers.add(member);
+    }
 }

@@ -1,5 +1,7 @@
 package com.example.document_management.entity;
 
+import java.util.List;
+
 import org.hibernate.annotations.SoftDelete;
 
 import com.example.document_management.enums.UserRoleEnum;
