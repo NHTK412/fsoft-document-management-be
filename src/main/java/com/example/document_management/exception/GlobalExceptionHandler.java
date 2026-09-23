@@ -37,8 +37,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(org.springframework.security.access.AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDeniedException(org.springframework.security.access.AccessDeniedException ex) {
+        String message = (ex.getMessage() != null && !ex.getMessage().isBlank()) ? ex.getMessage() : "Bạn không có quyền thực hiện hành động này!";
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
-                ApiResponse.error(HttpStatus.FORBIDDEN.value(), "Bạn không có quyền thực hiện hành động này!", HttpStatus.FORBIDDEN.name()));
+                ApiResponse.error(HttpStatus.FORBIDDEN.value(), message, HttpStatus.FORBIDDEN.name()));
     }
 
     @ExceptionHandler(org.springframework.security.authentication.BadCredentialsException.class)

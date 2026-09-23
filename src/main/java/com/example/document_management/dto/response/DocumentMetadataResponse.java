@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -14,4 +16,7 @@ public class DocumentMetadataResponse {
     private String fileName;
     private Long fileSize;
     private String contentType;
+    private Long projectId;
+    private Long uploaderId;
+    private Instant createdAt;
 }
