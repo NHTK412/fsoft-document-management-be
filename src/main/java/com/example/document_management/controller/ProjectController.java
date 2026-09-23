@@ -3,6 +3,11 @@ package com.example.document_management.controller;
 import java.util.List;
 
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -39,10 +44,11 @@ public class ProjectController {
     }
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách dự án tham gia", description = "Lấy danh sách tất cả các dự án mà người dùng hiện tại đang tham gia hoặc làm chủ sở hữu")
-    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getAllProjectByUser(
+    @Operation(summary = "Lấy danh sách dự án tham gia", description = "Lấy danh sách phân trang tất cả các dự án mà người dùng hiện tại đang tham gia hoặc làm chủ sở hữu")
+    public ResponseEntity<ApiResponse<Page<ProjectResponse>>> getAllProjectByUser(
+            @ParameterObject @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal UserDetails userDetails) {
-        List<ProjectResponse> responses = projectService.getAllProjectByUser(userDetails.getUsername());
+        Page<ProjectResponse> responses = projectService.getAllProjectByUser(userDetails.getUsername(), pageable);
         return ResponseEntity.ok(ApiResponse.success(200, responses, "Lấy danh sách dự án thành công!"));
     }
 

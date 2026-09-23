@@ -49,21 +49,19 @@ public class ProjectService {
         return mapToProjectResponse(savedProject, ProjectMemberRoleEnum.ROLE_OWNER, 0L);
     }
 
-    public List<ProjectResponse> getAllProjectByUser(String email) {
-        List<Project> projects = projectRepository.findAllByMemberEmail(email);
+    public org.springframework.data.domain.Page<ProjectResponse> getAllProjectByUser(String email, org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<Project> projects = projectRepository.findAllByMemberEmail(email, pageable);
 
-        return projects.stream()
-                .map(project -> {
-                    ProjectMemberRoleEnum currentUserRole = project.getProjectMembers().stream()
-                            .filter(pm -> pm.getUser().getEmail().equals(email))
-                            .map(ProjectMember::getRole)
-                            .findFirst()
-                            .orElse(null);
+        return projects.map(project -> {
+            ProjectMemberRoleEnum currentUserRole = projectMemberRepository
+                    .findByProjectIdAndUserEmail(project.getId(), email)
+                    .map(ProjectMember::getRole)
+                    .orElse(null);
 
-                    long totalFiles = documentRepository.countByProjectId(project.getId());
-                    return mapToProjectResponse(project, currentUserRole, totalFiles);
-                })
-                .toList();
+            long totalFiles = documentRepository.countByProjectId(project.getId());
+            long totalMembers = projectMemberRepository.countByProjectId(project.getId());
+            return mapToProjectResponse(project, currentUserRole, totalFiles, totalMembers);
+        });
     }
 
     public ProjectResponse getProjectById(Long projectId, String email) {
@@ -132,7 +130,7 @@ public class ProjectService {
         projectRepository.delete(project);
     }
 
-    private ProjectResponse mapToProjectResponse(Project project, ProjectMemberRoleEnum currentUserRole, Long totalFiles) {
+    private ProjectResponse mapToProjectResponse(Project project, ProjectMemberRoleEnum currentUserRole, Long totalFiles, Long totalMembers) {
         return ProjectResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
@@ -140,7 +138,12 @@ public class ProjectService {
                 .ownerId(project.getOwner() != null ? project.getOwner().getId() : null)
                 .currentUserRole(currentUserRole)
                 .totalFiles(totalFiles)
-                .totalMembers(project.getProjectMembers() != null ? (long) project.getProjectMembers().size() : 1L)
+                .totalMembers(totalMembers)
                 .build();
+    }
+
+    private ProjectResponse mapToProjectResponse(Project project, ProjectMemberRoleEnum currentUserRole, Long totalFiles) {
+        long totalMembers = projectMemberRepository.countByProjectId(project.getId());
+        return mapToProjectResponse(project, currentUserRole, totalFiles, totalMembers);
     }
 }

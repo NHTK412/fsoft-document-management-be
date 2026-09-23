@@ -82,7 +82,7 @@ public class DocumentService {
         return mapToResponse(saved);
     }
 
-    public List<DocumentMetadataResponse> getDocumentsByProject(Long projectId, String search, String type, String email) {
+    public org.springframework.data.domain.Page<DocumentMetadataResponse> getDocumentsByProject(Long projectId, String search, String type, String email, org.springframework.data.domain.Pageable pageable) {
         if (!projectRepository.existsById(projectId)) {
             throw new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId);
         }
@@ -93,20 +93,18 @@ public class DocumentService {
         String searchParam = (search != null && !search.trim().isEmpty()) ? search.trim() : null;
         String typeParam = (type != null && !type.trim().isEmpty()) ? type.trim() : null;
 
-        List<DocumentMetadata> docs;
+        org.springframework.data.domain.Page<DocumentMetadata> docs;
         if (searchParam != null && typeParam != null) {
-            docs = documentRepository.findByProjectIdAndFileNameContainingIgnoreCaseAndContentTypeContainingIgnoreCaseOrderByCreatedAtDesc(projectId, searchParam, typeParam);
+            docs = documentRepository.findByProjectIdAndFileNameContainingIgnoreCaseAndContentTypeContainingIgnoreCase(projectId, searchParam, typeParam, pageable);
         } else if (searchParam != null) {
-            docs = documentRepository.findByProjectIdAndFileNameContainingIgnoreCaseOrderByCreatedAtDesc(projectId, searchParam);
+            docs = documentRepository.findByProjectIdAndFileNameContainingIgnoreCase(projectId, searchParam, pageable);
         } else if (typeParam != null) {
-            docs = documentRepository.findByProjectIdAndContentTypeContainingIgnoreCaseOrderByCreatedAtDesc(projectId, typeParam);
+            docs = documentRepository.findByProjectIdAndContentTypeContainingIgnoreCase(projectId, typeParam, pageable);
         } else {
-            docs = documentRepository.findByProjectIdOrderByCreatedAtDesc(projectId);
+            docs = documentRepository.findByProjectId(projectId, pageable);
         }
 
-        return docs.stream()
-                .map(this::mapToResponse)
-                .collect(Collectors.toList());
+        return docs.map(this::mapToResponse);
     }
 
     public DocumentMetadataResponse getDocumentById(Long documentId, String email) {

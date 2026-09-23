@@ -2,6 +2,11 @@ package com.example.document_management.controller;
 
 import java.util.List;
 
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -30,9 +35,10 @@ public class AdminUserController {
     private final UserService userService;
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách tất cả người dùng", description = "Dành riêng cho Admin. Xem toàn bộ danh sách người dùng trong hệ thống kèm vai trò và trạng thái kích hoạt")
-    public ResponseEntity<ApiResponse<List<UserResponse>>> getAllUsers() {
-        List<UserResponse> usersResponse = userService.getAllUsers();
+    @Operation(summary = "Lấy danh sách tất cả người dùng", description = "Dành riêng cho Admin. Xem danh sách phân trang người dùng trong hệ thống kèm vai trò và trạng thái kích hoạt")
+    public ResponseEntity<ApiResponse<Page<UserResponse>>> getAllUsers(
+            @ParameterObject @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+        Page<UserResponse> usersResponse = userService.getAllUsers(pageable);
         return ResponseEntity.ok(ApiResponse.success(200, usersResponse, "Lấy danh sách người dùng thành công!"));
     }
 

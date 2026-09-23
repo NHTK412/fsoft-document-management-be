@@ -17,9 +17,9 @@ import lombok.RequiredArgsConstructor;
 public class UserService {
     private final UserRepository userRepository;
 
-    public List<UserResponse> getAllUsers() {
-        List<User> users = userRepository.findAll();
-        return users.stream().map(this::mapToUserResponse).toList();
+    public org.springframework.data.domain.Page<UserResponse> getAllUsers(org.springframework.data.domain.Pageable pageable) {
+        org.springframework.data.domain.Page<User> users = userRepository.findAll(pageable);
+        return users.map(this::mapToUserResponse);
     }
 
     public UserResponse getUserById(Long userId) {

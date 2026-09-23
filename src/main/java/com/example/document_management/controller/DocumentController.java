@@ -9,8 +9,13 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -21,7 +26,6 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -43,13 +47,14 @@ public class DocumentController {
     }
 
     @GetMapping("/projects/{projectId}/documents")
-    @Operation(summary = "Lấy danh sách tệp của dự án", description = "Dành cho thành viên dự án hoặc Admin. Hỗ trợ lọc theo loại tệp (vd: image, video, pdf, doc) và tìm kiếm theo tên tệp")
-    public ResponseEntity<ApiResponse<List<DocumentMetadataResponse>>> getDocumentsByProject(
+    @Operation(summary = "Lấy danh sách tệp của dự án", description = "Dành cho thành viên dự án hoặc Admin. Hỗ trợ phân trang, lọc theo loại tệp (vd: image, video, pdf, doc) và tìm kiếm theo tên tệp")
+    public ResponseEntity<ApiResponse<Page<DocumentMetadataResponse>>> getDocumentsByProject(
             @Parameter(description = "ID của dự án") @PathVariable Long projectId,
             @Parameter(description = "Từ khóa tìm kiếm theo tên tệp") @RequestParam(name = "search", required = false) String search,
             @Parameter(description = "Lọc theo loại tệp (ví dụ: image, video, pdf, doc)") @RequestParam(name = "type", required = false) String type,
+            @ParameterObject @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable,
             @AuthenticationPrincipal UserDetails userDetails) {
-        List<DocumentMetadataResponse> responses = documentService.getDocumentsByProject(projectId, search, type, userDetails.getUsername());
+        Page<DocumentMetadataResponse> responses = documentService.getDocumentsByProject(projectId, search, type, userDetails.getUsername(), pageable);
         return ResponseEntity.ok(ApiResponse.success(200, responses, "Lấy danh sách tệp thành công!"));
     }
 
