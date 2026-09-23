@@ -7,6 +7,7 @@ import com.example.document_management.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -16,24 +17,24 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "2. Profile", description = "Quản lý thông tin tài khoản cá nhân")
 @SecurityRequirement(name = "bearerAuth")
+@Tag(name = "2. User Profile", description = "Quản lý thông tin tài khoản cá nhân của người dùng")
 public class UserController {
 
     private final AuthService authService;
 
     @GetMapping("/me")
-    @Operation(summary = "Lấy thông tin cá nhân của người dùng đang đăng nhập")
+    @Operation(summary = "Lấy thông tin cá nhân", description = "Lấy thông tin chi tiết (họ tên, email, vai trò, trạng thái) của người dùng đang đăng nhập")
     public ResponseEntity<ApiResponse<UserResponse>> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
         UserResponse user = authService.getCurrentUserProfile(userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, user, "Lấy thông tin thành công!"));
     }
 
     @PutMapping("/me")
-    @Operation(summary = "Cập nhật thông tin cá nhân (họ tên, đổi mật khẩu)")
+    @Operation(summary = "Cập nhật thông tin cá nhân", description = "Cập nhật họ tên hiển thị hoặc thay đổi mật khẩu của người dùng hiện tại")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @AuthenticationPrincipal UserDetails userDetails,
-            @jakarta.validation.Valid @RequestBody UpdateProfileRequest request) {
+            @Valid @RequestBody UpdateProfileRequest request) {
         UserResponse user = authService.updateProfile(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.success(200, user, "Cập nhật thông tin thành công!"));
     }

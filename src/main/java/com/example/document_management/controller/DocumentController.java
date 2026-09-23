@@ -27,25 +27,25 @@ import java.util.List;
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "5. Document Management", description = "API quản lý và thao tác tài liệu (Upload, Download, Preview, Filter, Delete)")
+@Tag(name = "5. Document Management", description = "Quản lý và thao tác tệp tài liệu (Upload MinIO, Download, Preview trực tiếp, Tìm kiếm, Xóa)")
 public class DocumentController {
 
     private final DocumentService documentService;
 
     @PostMapping(value = "/projects/{projectId}/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Tải tệp lên dự án", description = "Thành viên dự án upload tệp lên MinIO và lưu metadata vào database")
+    @Operation(summary = "Tải tệp lên dự án", description = "Dành cho thành viên dự án hoặc Admin. Tải tệp lên MinIO (multipart/form-data) và lưu metadata vào PostgreSQL")
     public ResponseEntity<ApiResponse<DocumentMetadataResponse>> uploadDocument(
-            @PathVariable Long projectId,
-            @RequestParam("file") MultipartFile file,
+            @Parameter(description = "ID của dự án tải tệp lên") @PathVariable Long projectId,
+            @Parameter(description = "Tệp đính kèm cần upload") @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserDetails userDetails) {
         DocumentMetadataResponse response = documentService.uploadDocument(projectId, file, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, response, "Tải tệp lên thành công!"));
     }
 
     @GetMapping("/projects/{projectId}/documents")
-    @Operation(summary = "Lấy danh sách tệp của dự án", description = "Hỗ trợ lọc theo loại (vd: image, video, pdf) và tìm kiếm theo tên tệp")
+    @Operation(summary = "Lấy danh sách tệp của dự án", description = "Dành cho thành viên dự án hoặc Admin. Hỗ trợ lọc theo loại tệp (vd: image, video, pdf, doc) và tìm kiếm theo tên tệp")
     public ResponseEntity<ApiResponse<List<DocumentMetadataResponse>>> getDocumentsByProject(
-            @PathVariable Long projectId,
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
             @Parameter(description = "Từ khóa tìm kiếm theo tên tệp") @RequestParam(name = "search", required = false) String search,
             @Parameter(description = "Lọc theo loại tệp (ví dụ: image, video, pdf, doc)") @RequestParam(name = "type", required = false) String type,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -54,18 +54,18 @@ public class DocumentController {
     }
 
     @GetMapping("/documents/{documentId}")
-    @Operation(summary = "Lấy thông tin chi tiết của một tệp", description = "Lấy metadata chi tiết (tên, kích thước, mimetype, ngày tạo)")
+    @Operation(summary = "Xem thông tin chi tiết một tệp", description = "Dành cho thành viên dự án hoặc Admin. Lấy thông tin metadata chi tiết (tên tệp, dung lượng, định dạng MIME, ngày tạo)")
     public ResponseEntity<ApiResponse<DocumentMetadataResponse>> getDocumentById(
-            @PathVariable Long documentId,
+            @Parameter(description = "ID của tệp tài liệu") @PathVariable Long documentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         DocumentMetadataResponse response = documentService.getDocumentById(documentId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy thông tin tệp thành công!"));
     }
 
     @GetMapping("/documents/{documentId}/download")
-    @Operation(summary = "Tải tệp về máy", description = "Mặc định trả về binary stream trực tiếp. Nếu presigned=true sẽ trả về Pre-signed URL từ MinIO")
+    @Operation(summary = "Tải tệp về máy", description = "Dành cho thành viên dự án hoặc Admin. Mặc định tải file binary stream trực tiếp. Nếu presigned=true sẽ trả về Pre-signed URL từ MinIO")
     public ResponseEntity<?> downloadDocument(
-            @PathVariable Long documentId,
+            @Parameter(description = "ID của tệp tài liệu") @PathVariable Long documentId,
             @Parameter(description = "Nếu true, trả về pre-signed URL thay vì tải binary trực tiếp")
             @RequestParam(name = "presigned", defaultValue = "false") boolean presigned,
             @AuthenticationPrincipal UserDetails userDetails) {
@@ -97,9 +97,9 @@ public class DocumentController {
     }
 
     @GetMapping("/documents/{documentId}/preview")
-    @Operation(summary = "Stream xem trực tiếp tài liệu", description = "Stream file trực tiếp cho PDF viewer, Image preview, Video player")
+    @Operation(summary = "Stream xem trước tài liệu", description = "Dành cho thành viên dự án hoặc Admin. Stream tệp trực tiếp trong trình duyệt (hỗ trợ PDF Viewer, hình ảnh, video/audio)")
     public ResponseEntity<Resource> previewDocument(
-            @PathVariable Long documentId,
+            @Parameter(description = "ID của tệp tài liệu") @PathVariable Long documentId,
             @AuthenticationPrincipal UserDetails userDetails) {
 
         DocumentFileView fileView = documentService.getDocumentFileForDownload(documentId, userDetails.getUsername());
@@ -124,9 +124,9 @@ public class DocumentController {
     }
 
     @DeleteMapping("/documents/{documentId}")
-    @Operation(summary = "Xóa tệp", description = "Chỉ người upload, chủ dự án hoặc Admin mới có quyền xóa tài liệu")
+    @Operation(summary = "Xóa tệp", description = "Chỉ người upload tệp, Project Owner hoặc Admin mới có quyền xóa tài liệu. Xóa cả tệp trên MinIO và metadata trong PostgreSQL")
     public ResponseEntity<ApiResponse<Void>> deleteDocument(
-            @PathVariable Long documentId,
+            @Parameter(description = "ID của tệp tài liệu cần xóa") @PathVariable Long documentId,
             @AuthenticationPrincipal UserDetails userDetails) {
         documentService.deleteDocument(documentId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, null, "Xóa tệp thành công!"));

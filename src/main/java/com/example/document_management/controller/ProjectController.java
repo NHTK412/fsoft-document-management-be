@@ -15,6 +15,7 @@ import com.example.document_management.dto.response.ProjectResponse;
 import com.example.document_management.service.ProjectService;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -23,13 +24,13 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "4. Project Management", description = "API quản lý dự án (Project)")
+@Tag(name = "4. Project Management", description = "Quản lý dự án làm việc, thông tin thành viên và quyền sở hữu dự án")
 public class ProjectController {
 
     private final ProjectService projectService;
 
     @PostMapping
-    @Operation(summary = "Tạo dự án mới", description = "Người tạo mặc định sẽ là Project Owner")
+    @Operation(summary = "Tạo dự án mới", description = "Tạo dự án làm việc mới. Người tạo mặc định sẽ là Project Owner (Chủ dự án)")
     public ResponseEntity<ApiResponse<ProjectResponse>> createProject(
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ProjectCreateRequest projectCreateRequest) {
@@ -38,7 +39,7 @@ public class ProjectController {
     }
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách dự án mà user hiện tại đang tham gia")
+    @Operation(summary = "Lấy danh sách dự án tham gia", description = "Lấy danh sách tất cả các dự án mà người dùng hiện tại đang tham gia hoặc làm chủ sở hữu")
     public ResponseEntity<ApiResponse<List<ProjectResponse>>> getAllProjectByUser(
             @AuthenticationPrincipal UserDetails userDetails) {
         List<ProjectResponse> responses = projectService.getAllProjectByUser(userDetails.getUsername());
@@ -46,18 +47,18 @@ public class ProjectController {
     }
 
     @GetMapping("/{projectId}")
-    @Operation(summary = "Lấy thông tin chi tiết một dự án", description = "Dành cho thành viên dự án hoặc Admin")
+    @Operation(summary = "Lấy thông tin chi tiết một dự án", description = "Dành cho thành viên dự án hoặc Admin. Xem thông tin chi tiết dự án kèm số lượng tài liệu và thành viên")
     public ResponseEntity<ApiResponse<ProjectResponse>> getProjectById(
-            @PathVariable Long projectId,
+            @Parameter(description = "ID của dự án cần xem") @PathVariable Long projectId,
             @AuthenticationPrincipal UserDetails userDetails) {
         ProjectResponse response = projectService.getProjectById(projectId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy thông tin dự án thành công!"));
     }
 
     @PutMapping("/{projectId}")
-    @Operation(summary = "Cập nhật thông tin dự án", description = "Chỉ dành cho Project Owner hoặc Admin")
+    @Operation(summary = "Cập nhật thông tin dự án", description = "Chỉ dành cho Project Owner hoặc Admin. Cập nhật tên và mô tả của dự án")
     public ResponseEntity<ApiResponse<ProjectResponse>> updateProject(
-            @PathVariable Long projectId,
+            @Parameter(description = "ID của dự án cần cập nhật") @PathVariable Long projectId,
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ProjectUpdateRequest request) {
         ProjectResponse response = projectService.updateProject(projectId, userDetails.getUsername(), request);
@@ -65,9 +66,9 @@ public class ProjectController {
     }
 
     @DeleteMapping("/{projectId}")
-    @Operation(summary = "Xóa dự án", description = "Chỉ dành cho Project Owner hoặc Admin")
+    @Operation(summary = "Xóa dự án", description = "Chỉ dành cho Project Owner hoặc Admin. Xóa vĩnh viễn dự án cùng toàn bộ thành viên và tài liệu liên kết")
     public ResponseEntity<ApiResponse<Void>> deleteProject(
-            @PathVariable Long projectId,
+            @Parameter(description = "ID của dự án cần xóa") @PathVariable Long projectId,
             @AuthenticationPrincipal UserDetails userDetails) {
         projectService.deleteProject(projectId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, null, "Xóa dự án thành công!"));
