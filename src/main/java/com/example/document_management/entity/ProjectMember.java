@@ -30,4 +30,14 @@ public class ProjectMember {
 
     @Enumerated(EnumType.STRING)
     private ProjectMemberRoleEnum role;
+
+    @Builder.Default
+    private java.time.Instant joinedAt = java.time.Instant.now();
+
+    @PrePersist
+    protected void onCreate() {
+        if (joinedAt == null) {
+            joinedAt = java.time.Instant.now();
+        }
+    }
 }

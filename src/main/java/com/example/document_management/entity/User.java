@@ -36,4 +36,40 @@ public class User {
 
     @Enumerated(EnumType.STRING)
     private UserRoleEnum role;
+
+    private String title;
+
+    private String phone;
+
+    private String avatarUrl;
+
+    @Builder.Default
+    private String theme = "dark";
+
+    @Builder.Default
+    private String language = "vi";
+
+    @Builder.Default
+    private String timezone = "GMT+7";
+
+    @Builder.Default
+    private java.time.Instant createdAt = java.time.Instant.now();
+
+    @Builder.Default
+    private java.time.Instant updatedAt = java.time.Instant.now();
+
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = java.time.Instant.now();
+        }
+        if (updatedAt == null) {
+            updatedAt = createdAt;
+        }
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = java.time.Instant.now();
+    }
 }
