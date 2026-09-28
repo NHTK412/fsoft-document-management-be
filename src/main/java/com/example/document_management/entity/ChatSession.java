@@ -4,40 +4,42 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
-@Table(name = "document_metadata")
+@Table(name = "chat_sessions")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class DocumentMetadata {
+public class ChatSession {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "project_id", nullable = false)
+    private Project project;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
+
     @Column(nullable = false)
-    private String fileName;
-
-    private String s3Key;
-
-    private Long fileSize;
-
-    private String contentType;
-
-    private Long projectId;
-
-    private Long uploaderId;
-
-    private String category;
+    private String title;
 
     @Builder.Default
     private Instant createdAt = Instant.now();
 
     @Builder.Default
     private Instant updatedAt = Instant.now();
+
+    @Builder.Default
+    @OneToMany(mappedBy = "chatSession", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<ChatMessage> messages = new ArrayList<>();
 
     @PrePersist
     protected void onCreate() {
