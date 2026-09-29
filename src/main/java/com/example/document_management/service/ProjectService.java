@@ -148,6 +148,16 @@ public class ProjectService {
         }).toList();
     }
 
+    public List<ProjectResponse> getAllProjectsForAdmin() {
+        List<Project> projects = projectRepository.findAll();
+        return projects.stream().map(project -> {
+            long totalFiles = documentRepository.countByProjectId(project.getId());
+            long totalMembers = projectMemberRepository.countByProjectId(project.getId());
+            long storageUsedBytes = documentRepository.sumFileSizeByProjectId(project.getId());
+            return mapToProjectResponse(project, ProjectMemberRoleEnum.ROLE_ADMIN, totalFiles, totalMembers, storageUsedBytes);
+        }).toList();
+    }
+
     public Page<ProjectResponse> getAllProjectByUser(String email, Pageable pageable) {
         Page<Project> projects = projectRepository.findAllByMemberEmail(email, pageable);
 
@@ -496,6 +506,8 @@ public class ProjectService {
                 .name(project.getName())
                 .description(project.getDescription())
                 .ownerId(project.getOwner() != null ? project.getOwner().getId() : null)
+                .ownerName(project.getOwner() != null ? project.getOwner().getFullName() : null)
+                .ownerEmail(project.getOwner() != null ? project.getOwner().getEmail() : null)
                 .currentUserRole(currentUserRole)
                 .status(project.getStatus() != null ? project.getStatus() : "active")
                 .totalFiles(totalFiles)

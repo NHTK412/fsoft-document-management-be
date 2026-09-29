@@ -33,6 +33,8 @@ public class ProjectResponse {
     }
 
     private Long ownerId;
+    private String ownerName;
+    private String ownerEmail;
 
     private ProjectMemberRoleEnum currentUserRole;
 
