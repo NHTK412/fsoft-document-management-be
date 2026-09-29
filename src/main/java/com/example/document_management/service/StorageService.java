@@ -23,6 +23,9 @@ public class StorageService {
     @Value("${minio.bucket-name}")
     private String bucketName;
 
+    @Value("${minio.url:http://localhost:9000}")
+    private String minioUrl;
+
     @PostConstruct
     public void init() {
         try {
@@ -81,18 +84,27 @@ public class StorageService {
     }
 
     public String getPreSignedUrl(String s3Key, int expiryMinutes) {
+        return getPreSignedUrl(s3Key, expiryMinutes, TimeUnit.MINUTES, null);
+    }
+
+    public String getPreSignedUrl(String s3Key, int duration, TimeUnit unit, java.util.Map<String, String> extraQueryParams) {
         try {
-            return minioClient.getPresignedObjectUrl(
-                    GetPresignedObjectUrlArgs.builder()
-                            .method(Method.GET)
-                            .bucket(bucketName)
-                            .object(s3Key)
-                            .expiry(expiryMinutes, TimeUnit.MINUTES)
-                            .build()
-            );
+            GetPresignedObjectUrlArgs.Builder builder = GetPresignedObjectUrlArgs.builder()
+                    .method(Method.GET)
+                    .bucket(bucketName)
+                    .object(s3Key)
+                    .expiry(duration, unit);
+            if (extraQueryParams != null && !extraQueryParams.isEmpty()) {
+                builder.extraQueryParams(extraQueryParams);
+            }
+            return minioClient.getPresignedObjectUrl(builder.build());
         } catch (Exception e) {
             log.error("Lỗi khi sinh presigned URL từ MinIO: {}", e.getMessage(), e);
             throw new StorageException("Không thể sinh liên kết tải tệp: " + e.getMessage(), e);
         }
+    }
+
+    public String getDirectFileUrl(String s3Key) {
+        return minioUrl + "/" + bucketName + "/" + s3Key;
     }
 }
