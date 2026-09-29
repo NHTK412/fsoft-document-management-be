@@ -9,6 +9,7 @@ import com.example.document_management.repository.UserRepository;
 import com.example.document_management.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.*;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +24,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
 
     @Transactional
-    public UserResponse register(RegisterRequest request) {
+    public RegisterResponse register(RegisterRequest request) {
         if (userRepository.findByEmail(request.getEmail()).isPresent()) {
             throw new IllegalArgumentException("Email này đã được sử dụng!");
         }
@@ -36,23 +37,23 @@ public class AuthService {
                 .build();
 
         User savedUser = userRepository.save(user);
-        return mapToUserResponse(savedUser);
+        return mapToRegisterResponse(savedUser);
     }
 
     public AuthResponse login(LoginRequest request) {
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
-        );
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword()));
 
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
 
         String accessToken = tokenProvider.generateAccessToken(user.getEmail(), user.getRole().name());
         String refreshToken = tokenProvider.generateRefreshToken(user.getEmail());
-
+        long expiresIn = tokenProvider.getExpirationTime();
         return AuthResponse.builder()
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
+                .expiresIn(expiresIn)
                 .user(mapToUserResponse(user))
                 .build();
     }
@@ -94,13 +95,20 @@ public class AuthService {
             if (request.getNewPassword().length() < 6) {
                 throw new IllegalArgumentException("Mật khẩu mới phải từ 6 ký tự trở lên!");
             }
-            if (request.getCurrentPassword() == null || !passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            if (request.getCurrentPassword() == null
+                    || !passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
                 throw new IllegalArgumentException("Mật khẩu hiện tại không chính xác!");
             }
             user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         }
 
         return mapToUserResponse(userRepository.save(user));
+    }
+
+    public UserResponse getCurrentUser(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+        return mapToUserResponse(user);
     }
 
     private UserResponse mapToUserResponse(User user) {
@@ -110,6 +118,15 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .role(user.getRole())
                 .isActive(user.isActive())
+                .avatarUrl(user.getAvatarUrl())
+                .build();
+    }
+
+    private RegisterResponse mapToRegisterResponse(User user) {
+        return RegisterResponse.builder()
+                .id(user.getId())
+                .email(user.getEmail())
+                .requiresEmailVerification(false)
                 .build();
     }
 }

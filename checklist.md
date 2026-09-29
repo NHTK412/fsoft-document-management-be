@@ -21,18 +21,13 @@
 
 Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cần hoàn thiện các thành phần cốt lõi sau:
 
-- [ ] **[CORS-01] Bổ sung cấu hình CORS (Cross-Origin Resource Sharing):**
-  - *Hiện trạng:* Backend hiện **chưa có cấu hình CORS** nào trong `SecurityConfig` hay `WebMvcConfigurer`. Frontend Vite (`http://localhost:5173`) sẽ bị trình duyệt chặn ngay khi gọi API.
-  - *Cần làm:* Thêm `CorsConfigurationSource` vào `SecurityConfig`, cho phép Origin `http://localhost:5173`, `http://localhost:3000`, đầy đủ các Headers (`Authorization`, `Content-Type`) và HTTP Methods (`GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `OPTIONS`).
+- [x] **[CORS-01] Bổ sung cấu hình CORS (Cross-Origin Resource Sharing):**
+  - Đã cấu hình `CorsConfigurationSource` cho phép Origin Frontend (`http://localhost:5173`, `http://localhost:3000`), đầy đủ Headers và HTTP Methods.
 - [ ] **[PORT-02] Thống nhất Server Port:**
   - *Hiện trạng:* `application.properties` đang để `server.port=10001`, trong khi tài liệu FE quy ước `http://localhost:8080/api/v1`.
   - *Cần làm:* Thống nhất giữ port `10001` (FE cấu hình env/Vite proxy) hoặc đổi lại `8080`.
 - [ ] **[ENV-03] Chuẩn hóa Response Envelope (`ApiResponse<T>`):**
-  - *Hiện trạng:* BE dùng trường `statusCode` (không có `code`), không có trường `meta` cho phân trang (BE đang đẩy nguyên đối tượng `Page<T>` vào `data` khiến cấu trúc FE nhận được là `data.content`, `data.pageable`...).
-  - *Cần làm:*
-    - Thêm getter/alias `code` song song với `statusCode`.
-    - Thêm trường `meta: { page, limit, totalItems, totalPages }` cho các API phân trang.
-    - Cập nhật `GlobalExceptionHandler` trả về chuẩn: `{ success: false, code: 400, errorCode: "...", message: "...", errors: [...], timestamp: "..." }`.
+  - *Hiện trạng:* Đã bổ sung getter `getCode()` map trường `code`, cần bổ sung trường `meta` cho các API phân trang.
 - [x] **[DB-04] Cập nhật và mở rộng Database Schema (Entities):**
   - Đã cập nhật 4 Entity hiện có và tạo mới 5 Entity kèm 5 Repository tương ứng. Xem chi tiết tại [Mục 4: Database Entities Checklist](#-4-checklist-mở-rộng-database--entities).
 
@@ -46,9 +41,9 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 1 | `/api/v1/auth/login` | `POST` | Đã có | 🟡 **Chỉnh sửa** | • Thêm `expiresIn` vào `AuthResponse`.<br>• Chuẩn hoá trường `user.role` (hiển thị `"Admin"` / `"User"` hoặc giữ enum theo quy ước FE).<br>• Bổ sung trường `avatarUrl` trong `UserResponse`. |
-| 2 | `/api/v1/auth/register` | `POST` | Đã có | 🟡 **Chỉnh sửa** | • Chuyển HTTP status trả về thành `201 Created` (hiện tại `200 OK`).<br>• Cập nhật DTO trả về chứa: `{ userId, email, requiresEmailVerification: false }`. |
-| 3 | `/api/v1/auth/me` | `GET` | Chưa có | 🔴 **Thêm mới** | • Thêm endpoint `GET /api/v1/auth/me` (hiện tại BE chỉ có `/api/v1/users/me`).<br>• Trả về thông tin phiên người dùng hiện tại `{ id, fullName, email, role, avatarUrl }`. |
+| 1 | `/api/v1/auth/login` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Đã có `accessToken`, `refreshToken`, `expiresIn` (tính bằng giây: 86400), `user` có `avatarUrl`. |
+| 2 | `/api/v1/auth/register` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Trả về HTTP `201 Created` kèm `code: 201` và DTO `RegisterResponse` có cả `id` và `userId` (dạng số). |
+| 3 | `/api/v1/auth/me` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Đã thêm endpoint bảo vệ với JWT, trả về đầy đủ `{ id, fullName, email, role, avatarUrl }`. |
 
 ---
 
@@ -125,9 +120,9 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 31 | `/api/v1/users/me/profile` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy thông tin hồ sơ mở rộng của người dùng hiện tại: `fullName`, `title`, `phone`, `role`, `initials`, `theme`, `language`, `timezone`, `avatarUrl`. |
-| 32 | `/api/v1/users/me/profile` | `PUT` | Chưa có | 🔴 **Thêm mới** | • Cập nhật hồ sơ cá nhân: `{ fullName, title, phone }`. |
-| 33 | `/api/v1/users/me/preferences` | `PUT` | Chưa có | 🔴 **Thêm mới** | • Cập nhật tùy chọn hiển thị: `{ theme, language, timezone }`. |
+| 31 | `/api/v1/users/me/profile` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy thông tin hồ sơ mở rộng của người dùng hiện tại: `fullName`, `title`, `phone`, `role`, `initials`, `avatarUrl`. |
+| 32 | `/api/v1/users/me/profile` | `PUT` | Chưa có | 🔴 **Thêm mới** | • Cập nhật hồ sơ cá nhân: `{ fullName`, `title`, `phone }`. |
+| 33 | ~~/api/v1/users/me/preferences~~ | ~~PUT~~ | Đã hủy | ⚪ **Đã loại bỏ** | *(Đã hủy theo yêu cầu - không lưu theme/language/timezone ở BE)* |
 | 34 | `/api/v1/users/me/change-password` | `POST` | Chưa có | 🔴 **Thêm mới** | • Tách riêng API đổi mật khẩu: `{ currentPassword, newPassword }` (thay vì gộp chung trong `PUT /users/me`). |
 | 35 | `/api/v1/users/me/sessions` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy danh sách thiết bị/phiên đăng nhập hiện tại: `[{ id, deviceName, location, ip, isCurrent, deviceType, lastActive }]`. |
 | 36 | `/api/v1/users/me/sessions/{sessionId}` | `DELETE` | Chưa có | 🔴 **Thêm mới** | • Thu hồi một phiên đăng nhập thiết bị cụ thể. |
@@ -144,9 +139,7 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
   - `title` *(String)*: Chức danh chuyên môn (VD: "Lead Solution Architect").
   - `phone` *(String)*: Số điện thoại.
   - `avatarUrl` *(String)*: Đường dẫn ảnh đại diện.
-  - `theme` *(String, default: "dark")*: Giao diện nền tối / sáng.
-  - `language` *(String, default: "vi")*: Ngôn ngữ hiển thị.
-  - `timezone` *(String, default: "GMT+7")*: Múi giờ.
+  - *(Đã loại bỏ các trường theme, language, timezone theo yêu cầu)*.
 - [x] **`Project.java`**:
   - `status` *(String, default: "active")*: `active` hoặc `archived`.
   - `maxFileSize` *(String, default: "50 MB")*: Giới hạn kích thước file.
