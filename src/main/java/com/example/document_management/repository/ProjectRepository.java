@@ -18,4 +18,20 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
             "WHERE p.id IN (SELECT m.project.id FROM ProjectMember m WHERE m.user.email = :email)",
            countQuery = "SELECT COUNT(DISTINCT m.project.id) FROM ProjectMember m WHERE m.user.email = :email")
     Page<Project> findAllByMemberEmail(@Param("email") String email, Pageable pageable);
+
+    @Query(value = "SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.owner " +
+            "JOIN p.projectMembers m " +
+            "WHERE m.user.email = :email " +
+            "AND (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "AND (:status IS NULL OR p.status = :status) " +
+            "AND (:role IS NULL OR :role = 'all' OR " +
+            "     (:role = 'owner' AND m.role = 'ROLE_OWNER') OR " +
+            "     (:role = 'admin' AND m.role = 'ROLE_ADMIN') OR " +
+            "     (:role = 'member' AND m.role IN ('ROLE_MEMBER', 'ROLE_VIEWER')))")
+    List<Project> searchProjectsByUser(
+            @Param("email") String email,
+            @Param("search") String search,
+            @Param("role") String role,
+            @Param("status") String status
+    );
 }

@@ -51,8 +51,8 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 4 | `/api/v1/projects` | `GET` | Đã có | 🟡 **Chỉnh sửa** | • Bổ sung bộ lọc query parameters: `search` (tên/mô tả), `role` (`all`, `owner`, `admin`, `member`), `status` (`active`, `archived`).<br>• Chuẩn hóa DTO `ProjectResponse` theo FE: `title` (thay vì chỉ `name`), `status`, `storageUsed`, `storageLimit`, `activeMembers`, `updatedAt`. |
-| 5 | `/api/v1/projects` | `POST` | Đã có | 🟡 **Chỉnh sửa** | • Cập nhật `ProjectCreateRequest` để nhận thêm: `title` (map với `name`), `maxFileSize`, `allowedFormats`.<br>• Trả về HTTP status `201 Created`.<br>• Lưu các trường cấu hình file vào bảng `projects`. |
+| 4 | `/api/v1/projects` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Đã bổ sung query params `search`, `role`, `status`.<br>• DTO `ProjectResponse` đầy đủ các trường `title`, `desc`, `role`, `status`, `storageUsed`, `storageLimit`, `activeMembers`, `updatedAt` (chuẩn ISO-8601: `2026-09-29T06:05:18.342Z`), `avatars`, `iconBg`, `iconColor`. |
+| 5 | `/api/v1/projects` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Nhận `name`/`title`, `description`, `maxFileSize`, `allowedFormats`, `inviteEmails`.<br>• Trả về HTTP `201 Created` kèm `code: 201`.<br>• Tự động tạo bản ghi lời mời thành viên ban đầu nếu có. |
 
 ---
 
@@ -60,9 +60,9 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 6 | `/api/v1/projects/{projectId}/dashboard/stats` | `GET` | Chưa có | 🔴 **Thêm mới** | • Tạo endpoint thống kê chỉ số dự án: `total_files`, `storage_used`, `ai_queries`, `active_members`.<br>• Tính toán phân bố định dạng file (`formatDistribution`: PDF, Office, Markdown, Video, Ảnh...). |
-| 7 | `/api/v1/projects/{projectId}/dashboard/recently-viewed` | `GET` | Chưa có | 🔴 **Thêm mới** | • Hỗ trợ query param `limit` (mặc định 5).<br>• Trả về danh sách file được truy cập/tải lên gần nhất trong dự án. |
-| 8 | `/api/v1/projects/{projectId}/dashboard/activities` | `GET` | Chưa có | 🔴 **Thêm mới** | • Hỗ trợ query param `limit` (mặc định 10).<br>• Trả về timeline dòng hoạt động gần đây của dự án (user upload, vector index, AI query). |
+| 6 | `/api/v1/projects/{projectId}/dashboard/stats` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Đã triển khai endpoint thống kê chỉ số dự án: `total_files`, `storage_used`, `ai_queries`, `active_members`.<br>• Đã tính toán phân bố định dạng tài liệu (`formatDistribution`: PDF Documents, Office, Markdown & Text, Video, Hình ảnh & Khác). |
+| 7 | `/api/v1/projects/{projectId}/dashboard/recently-viewed` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Hỗ trợ query param `limit` (mặc định 5).<br>• Trả về danh sách tệp gần nhất trong dự án kèm `name`, `type`, `size`, `sizeFormatted`, `createdAt` (chuẩn ISO-8601 UTC). |
+| 8 | `/api/v1/projects/{projectId}/dashboard/activities` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Hỗ trợ query param `limit` (mặc định 10).<br>• Trả về timeline dòng hoạt động gần đây của dự án (user action, target, userName, userAvatar, createdAt chuẩn ISO-8601 UTC). Tự động ghi nhận khi tải file và tạo dự án. |
 
 ---
 

@@ -17,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import com.example.document_management.entity.ProjectActivity;
+import com.example.document_management.repository.ProjectActivityRepository;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -37,6 +39,7 @@ public class DocumentService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
+    private final ProjectActivityRepository projectActivityRepository;
 
     @Getter
     @AllArgsConstructor
@@ -79,6 +82,19 @@ public class DocumentService {
                 .build();
 
         DocumentMetadata saved = documentRepository.save(metadata);
+
+        try {
+            projectActivityRepository.save(ProjectActivity.builder()
+                    .project(projectRepository.getReferenceById(projectId))
+                    .user(user)
+                    .userAction((user.getFullName() != null ? user.getFullName() : "Người dùng") + " đã tải lên tệp mới")
+                    .target(originalFilename)
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (Exception e) {
+            log.warn("Không thể lưu hoạt động tải lên tài liệu: {}", e.getMessage());
+        }
+
         return mapToResponse(saved);
     }
 
@@ -187,6 +203,7 @@ public class DocumentService {
                 .projectId(doc.getProjectId())
                 .uploaderId(doc.getUploaderId())
                 .createdAt(doc.getCreatedAt())
+                .updatedAt(doc.getUpdatedAt() != null ? doc.getUpdatedAt() : doc.getCreatedAt())
                 .build();
     }
 }

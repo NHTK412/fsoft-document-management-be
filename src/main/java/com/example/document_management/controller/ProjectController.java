@@ -3,11 +3,7 @@ package com.example.document_management.controller;
 import java.util.List;
 
 import jakarta.validation.Valid;
-import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -17,6 +13,10 @@ import com.example.document_management.dto.request.ProjectCreateRequest;
 import com.example.document_management.dto.request.ProjectUpdateRequest;
 import com.example.document_management.dto.response.ApiResponse;
 import com.example.document_management.dto.response.ProjectResponse;
+import com.example.document_management.dto.response.ProjectActivityResponse;
+import com.example.document_management.dto.response.ProjectDashboardStatsResponse;
+import com.example.document_management.dto.response.RecentlyViewedDocResponse;
+import com.example.document_management.service.ProjectDashboardService;
 import com.example.document_management.service.ProjectService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectDashboardService projectDashboardService;
 
     @PostMapping
     @Operation(summary = "Tạo dự án mới", description = "Tạo dự án làm việc mới. Người tạo mặc định sẽ là Project Owner (Chủ dự án)")
@@ -40,15 +41,18 @@ public class ProjectController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ProjectCreateRequest projectCreateRequest) {
         ProjectResponse response = projectService.createProject(userDetails.getUsername(), projectCreateRequest);
-        return ResponseEntity.ok(ApiResponse.success(200, response, "Tạo dự án mới thành công!"));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(201, response, "Dự án đã được tạo thành công!"));
     }
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách dự án tham gia", description = "Lấy danh sách phân trang tất cả các dự án mà người dùng hiện tại đang tham gia hoặc làm chủ sở hữu")
-    public ResponseEntity<ApiResponse<Page<ProjectResponse>>> getAllProjectByUser(
-            @ParameterObject @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+    @Operation(summary = "Lấy danh sách dự án tham gia", description = "Lấy danh sách tất cả các dự án mà người dùng hiện tại đang tham gia, hỗ trợ tìm kiếm và lọc theo vai trò, trạng thái")
+    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getAllProjectByUser(
+            @Parameter(description = "Từ khóa tìm kiếm tên hoặc mô tả dự án") @RequestParam(name = "search", required = false) String search,
+            @Parameter(description = "Lọc theo vai trò: all | owner | admin | member") @RequestParam(name = "role", required = false) String role,
+            @Parameter(description = "Lọc theo trạng thái: active | archived") @RequestParam(name = "status", required = false) String status,
             @AuthenticationPrincipal UserDetails userDetails) {
-        Page<ProjectResponse> responses = projectService.getAllProjectByUser(userDetails.getUsername(), pageable);
+        List<ProjectResponse> responses = projectService.getAllProjects(userDetails.getUsername(), search, role, status);
         return ResponseEntity.ok(ApiResponse.success(200, responses, "Lấy danh sách dự án thành công!"));
     }
 
@@ -78,5 +82,34 @@ public class ProjectController {
             @AuthenticationPrincipal UserDetails userDetails) {
         projectService.deleteProject(projectId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, null, "Xóa dự án thành công!"));
+    }
+
+    @GetMapping("/{projectId}/dashboard/stats")
+    @Operation(summary = "Lấy số liệu thống kê chỉ số dự án", description = "Lấy các chỉ số tổng quan của dự án (tổng số tệp, dung lượng MinIO, hỏi đáp AI trong tuần, thành viên hoạt động) và phân bố định dạng tài liệu")
+    public ResponseEntity<ApiResponse<ProjectDashboardStatsResponse>> getDashboardStats(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        ProjectDashboardStatsResponse response = projectDashboardService.getDashboardStats(projectId, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy thống kê dự án thành công!"));
+    }
+
+    @GetMapping("/{projectId}/dashboard/recently-viewed")
+    @Operation(summary = "Lấy danh sách tài liệu truy cập gần đây", description = "Lấy danh sách tệp tài liệu được tải lên hoặc truy cập gần nhất trong dự án")
+    public ResponseEntity<ApiResponse<List<RecentlyViewedDocResponse>>> getRecentlyViewed(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @Parameter(description = "Số lượng bản ghi tối đa (mặc định 5)") @RequestParam(name = "limit", required = false, defaultValue = "5") Integer limit,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        List<RecentlyViewedDocResponse> response = projectDashboardService.getRecentlyViewed(projectId, limit, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy danh sách tài liệu gần đây thành công!"));
+    }
+
+    @GetMapping("/{projectId}/dashboard/activities")
+    @Operation(summary = "Dòng thời gian hoạt động của dự án", description = "Lấy timeline lịch sử hoạt động gần đây của dự án")
+    public ResponseEntity<ApiResponse<List<ProjectActivityResponse>>> getActivities(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @Parameter(description = "Số lượng bản ghi tối đa (mặc định 10)") @RequestParam(name = "limit", required = false, defaultValue = "10") Integer limit,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        List<ProjectActivityResponse> response = projectDashboardService.getActivities(projectId, limit, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy dòng thời gian hoạt động thành công!"));
     }
 }
