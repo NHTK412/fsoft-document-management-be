@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -34,9 +35,20 @@ public class AiIntegrationService {
 
     public PredictResponse generateRagResponse(Project project, String userQuery, List<Long> selectedDocumentIds) {
 
-        var body = new HashMap<>();
+        Map<String, Object> body = new HashMap<>();
         body.put("query", userQuery);
         body.put("project_id", project.getId().toString());
+
+        if (selectedDocumentIds != null && !selectedDocumentIds.isEmpty()) {
+            List<String> sources = documentRepository.findAllById(selectedDocumentIds).stream()
+                    .filter(doc -> doc.getProjectId() != null && doc.getProjectId().equals(project.getId()))
+                    .map(DocumentMetadata::getS3Key)
+                    .filter(s3Key -> s3Key != null && !s3Key.isBlank())
+                    .collect(Collectors.toList());
+            if (!sources.isEmpty()) {
+                body.put("sources", sources);
+            }
+        }
 
         try {
             var response = restClient.post()
