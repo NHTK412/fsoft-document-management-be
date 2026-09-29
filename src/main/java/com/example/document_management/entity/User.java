@@ -1,6 +1,5 @@
 package com.example.document_management.entity;
 
-import java.util.List;
 
 import org.hibernate.annotations.SoftDelete;
 
@@ -42,15 +41,6 @@ public class User {
     private String phone;
 
     private String avatarUrl;
-
-    @Builder.Default
-    private String theme = "dark";
-
-    @Builder.Default
-    private String language = "vi";
-
-    @Builder.Default
-    private String timezone = "GMT+7";
 
     @Builder.Default
     private java.time.Instant createdAt = java.time.Instant.now();

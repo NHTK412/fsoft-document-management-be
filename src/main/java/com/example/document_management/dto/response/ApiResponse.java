@@ -17,9 +17,14 @@ public class ApiResponse<T> {
     private String errorCode;
     private String timestamp;
 
+    public Integer getCode() {
+        return statusCode != null ? statusCode : (success ? 200 : 500);
+    }
+
     public static <T> ApiResponse<T> success(T data, String message) {
         return ApiResponse.<T>builder()
                 .success(true)
+                .statusCode(200)
                 .message(message)
                 .data(data)
                 .build();

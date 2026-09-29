@@ -25,6 +25,10 @@ public class JwtTokenProvider {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes(StandardCharsets.UTF_8));
     }
 
+    public long getExpirationTime() {
+        return jwtExpiration / 1000;
+    }
+
     public String generateAccessToken(String email, String role) {
         return generateToken(email, role, jwtExpiration);
     }

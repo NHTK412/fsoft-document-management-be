@@ -9,6 +9,7 @@ import lombok.*;
 public class AuthResponse {
     private String accessToken;
     private String refreshToken;
+    private Long expiresIn;
     @Builder.Default
     private String tokenType = "Bearer";
     private UserResponse user;
