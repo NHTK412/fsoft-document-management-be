@@ -24,6 +24,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -379,6 +380,7 @@ public class DocumentService {
 
         storageService.deleteFile(doc.getS3Key());
         documentRepository.delete(doc);
+        deleteVectorEmbeddingsFromPython(projectId, doc.getS3Key(), doc.getFileName());
 
         try {
             projectActivityRepository.save(ProjectActivity.builder()
@@ -423,6 +425,7 @@ public class DocumentService {
                 try {
                     storageService.deleteFile(doc.getS3Key());
                     documentRepository.delete(doc);
+                    deleteVectorEmbeddingsFromPython(projectId, doc.getS3Key(), doc.getFileName());
                     deletedCount++;
                 } catch (Exception e) {
                     log.error("Lỗi khi xóa tệp ID {}: {}", doc.getId(), e.getMessage());
@@ -648,6 +651,24 @@ public class DocumentService {
             }
         } catch (Exception e) {
             return 100L * 1024 * 1024;
+        }
+    }
+
+    private void deleteVectorEmbeddingsFromPython(Long projectId, String s3Key, String fileName) {
+        try {
+            Map<String, Object> req = new HashMap<>();
+            req.put("project_id", projectId.toString());
+            req.put("object_name", s3Key);
+
+            restClient.method(HttpMethod.DELETE)
+                    .uri("/api/v1/documents/delete")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(req)
+                    .retrieve()
+                    .toBodilessEntity();
+            log.info("Đã đồng bộ xóa vector embedding trên Python service cho tệp: {}", fileName);
+        } catch (Exception e) {
+            log.warn("Không thể xóa vector embedding trên Python service cho tệp {}: {}", fileName, e.getMessage());
         }
     }
 }

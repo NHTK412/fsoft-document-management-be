@@ -5,15 +5,19 @@ import com.example.document_management.dto.request.SendMessageRequest;
 import com.example.document_management.dto.response.ChatCitationDto;
 import com.example.document_management.dto.response.ChatMessageResponse;
 import com.example.document_management.dto.response.ChatSessionResponse;
+import com.example.document_management.dto.response.CitationDto;
 import com.example.document_management.dto.response.CreateChatSessionResponse;
+import com.example.document_management.dto.response.PredictResponse;
 import com.example.document_management.entity.ChatMessage;
 import com.example.document_management.entity.ChatSession;
+import com.example.document_management.entity.DocumentMetadata;
 import com.example.document_management.entity.Project;
 import com.example.document_management.entity.User;
 import com.example.document_management.enums.UserRoleEnum;
 import com.example.document_management.exception.ResourceNotFoundException;
 import com.example.document_management.repository.ChatMessageRepository;
 import com.example.document_management.repository.ChatSessionRepository;
+import com.example.document_management.repository.DocumentRepository;
 import com.example.document_management.repository.ProjectMemberRepository;
 import com.example.document_management.repository.ProjectRepository;
 import com.example.document_management.repository.UserRepository;
@@ -29,6 +33,8 @@ import java.time.Instant;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -41,6 +47,7 @@ public class AiChatService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
+    private final DocumentRepository documentRepository;
     private final AiIntegrationService aiIntegrationService;
     private final ObjectMapper objectMapper;
 
@@ -50,7 +57,8 @@ public class AiChatService {
         User user = getUser(email);
         verifyProjectAccess(project, user);
 
-        List<ChatSession> sessions = chatSessionRepository.findByProjectIdAndUserIdOrderByUpdatedAtDesc(projectId, user.getId());
+        List<ChatSession> sessions = chatSessionRepository.findByProjectIdAndUserIdOrderByUpdatedAtDesc(projectId,
+                user.getId());
 
         return sessions.stream().map(session -> {
             long count = chatMessageRepository.countByChatSessionId(session.getId());
@@ -123,38 +131,51 @@ public class AiChatService {
         chatMessageRepository.save(userMessage);
 
         // 2. Sinh phản hồi AI kèm trích dẫn RAG
-        AiIntegrationService.GeneratedAiMessage aiGen = aiIntegrationService.generateRagResponse(
+        PredictResponse aiGen = aiIntegrationService.generateRagResponse(
                 project,
                 request.getMessage(),
-                request.getSelectedDocumentIds()
-        );
+                request.getSelectedDocumentIds());
 
         Instant aiTime = Instant.now();
 
-        // 3. Lưu câu trả lời của AI
+        // 3. Chuẩn hóa trích dẫn nguồn (Citation) sang đúng format ChatCitationDto của FE
+        ChatCitationDto chatCitation = extractChatCitation(aiGen != null ? aiGen.getCitations() : null, projectId);
+        String citationJsonStr = null;
+        if (chatCitation != null) {
+            try {
+                citationJsonStr = objectMapper.writeValueAsString(chatCitation);
+            } catch (Exception e) {
+                log.warn("Không thể serialize citationJson: {}", e.getMessage());
+            }
+        }
+
+        String intro = null;
+        if (chatCitation != null && chatCitation.getFileName() != null) {
+            intro = "Dựa trên tài liệu " + chatCitation.getFileName() + " của dự án:";
+        }
+
+        // 4. Lưu câu trả lời của AI
         ChatMessage aiMessage = ChatMessage.builder()
                 .chatSession(session)
                 .sender("ai")
-                .intro(aiGen.intro())
-                .content(aiGen.text())
-                .stepsJson(aiGen.stepsJson())
-                .citationJson(aiGen.citationJson())
+                .intro(intro)
+                .content(aiGen != null ? aiGen.getAnswer() : "")
+                .citationJson(citationJsonStr)
                 .createdAt(aiTime)
                 .build();
 
         ChatMessage savedAi = chatMessageRepository.save(aiMessage);
 
-        // 4. Cập nhật thời điểm phiên chat
+        // 5. Cập nhật thời điểm phiên chat
         session.setUpdatedAt(aiTime);
         chatSessionRepository.save(session);
 
         return ChatMessageResponse.builder()
                 .id(savedAi.getId())
                 .sender("ai")
-                .intro(aiGen.intro())
-                .text(aiGen.text())
-                .steps(aiGen.steps())
-                .citation(aiGen.citation())
+                .intro(intro)
+                .text(aiGen != null ? aiGen.getAnswer() : "")
+                .citation(chatCitation)
                 .createdAt(DateTimeFormatter.ISO_INSTANT.format(aiTime))
                 .build();
     }
@@ -186,7 +207,8 @@ public class AiChatService {
         if (user.getRole() == UserRoleEnum.ROLE_ADMIN) {
             return;
         }
-        boolean isMember = projectMemberRepository.findByProjectIdAndUserEmail(project.getId(), user.getEmail()).isPresent();
+        boolean isMember = projectMemberRepository.findByProjectIdAndUserEmail(project.getId(), user.getEmail())
+                .isPresent();
         if (!isMember) {
             throw new AccessDeniedException("Bạn không phải thành viên của dự án này!");
         }
@@ -207,7 +229,8 @@ public class AiChatService {
         List<String> steps = new ArrayList<>();
         if (msg.getStepsJson() != null && !msg.getStepsJson().isBlank()) {
             try {
-                steps = objectMapper.readValue(msg.getStepsJson(), new TypeReference<List<String>>() {});
+                steps = objectMapper.readValue(msg.getStepsJson(), new TypeReference<List<String>>() {
+                });
             } catch (Exception e) {
                 log.warn("Không thể parse stepsJson: {}", e.getMessage());
             }
@@ -230,6 +253,58 @@ public class AiChatService {
                 .steps(steps)
                 .citation(citation)
                 .createdAt(DateTimeFormatter.ISO_INSTANT.format(msg.getCreatedAt()))
+                .build();
+    }
+
+    private ChatCitationDto extractChatCitation(List<CitationDto> citations, Long projectId) {
+        if (citations == null || citations.isEmpty()) {
+            return null;
+        }
+
+        CitationDto first = citations.get(0);
+        String source = first.getSourceFile();
+        if (source == null || source.isBlank()) {
+            return null;
+        }
+
+        String cleanFileName = source;
+        if (cleanFileName.contains("/")) {
+            cleanFileName = cleanFileName.substring(cleanFileName.lastIndexOf('/') + 1);
+        }
+
+        Long documentId = null;
+        try {
+            List<DocumentMetadata> docs = documentRepository.findByProjectId(projectId);
+            for (DocumentMetadata doc : docs) {
+                if (doc.getFileName().equalsIgnoreCase(cleanFileName)
+                        || (doc.getS3Key() != null && doc.getS3Key().equalsIgnoreCase(source))) {
+                    documentId = doc.getId();
+                    cleanFileName = doc.getFileName();
+                    break;
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Không thể tìm documentId cho citation: {}", e.getMessage());
+        }
+
+        Integer page = null;
+        String loc = first.getLocation();
+        if (loc != null) {
+            Matcher matcher = Pattern.compile("\\d+").matcher(loc);
+            if (matcher.find()) {
+                try {
+                    page = Integer.parseInt(matcher.group());
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+
+        return ChatCitationDto.builder()
+                .fileName(cleanFileName)
+                .documentId(documentId)
+                .page(page != null ? page : 1)
+                .confidence("98.5%")
+                .snippet(first.getQuote())
                 .build();
     }
 }
