@@ -60,9 +60,9 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 6 | `/api/v1/projects/{projectId}/dashboard/stats` | `GET` | Chưa có | 🔴 **Thêm mới** | • Tạo endpoint thống kê chỉ số dự án: `total_files`, `storage_used`, `ai_queries`, `active_members`.<br>• Tính toán phân bố định dạng file (`formatDistribution`: PDF, Office, Markdown, Video, Ảnh...). |
-| 7 | `/api/v1/projects/{projectId}/dashboard/recently-viewed` | `GET` | Chưa có | 🔴 **Thêm mới** | • Hỗ trợ query param `limit` (mặc định 5).<br>• Trả về danh sách file được truy cập/tải lên gần nhất trong dự án. |
-| 8 | `/api/v1/projects/{projectId}/dashboard/activities` | `GET` | Chưa có | 🔴 **Thêm mới** | • Hỗ trợ query param `limit` (mặc định 10).<br>• Trả về timeline dòng hoạt động gần đây của dự án (user upload, vector index, AI query). |
+| 6 | `/api/v1/projects/{projectId}/dashboard/stats` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Đã triển khai endpoint thống kê chỉ số dự án: `total_files`, `storage_used`, `ai_queries`, `active_members`.<br>• Đã tính toán phân bố định dạng tài liệu (`formatDistribution`: PDF Documents, Office, Markdown & Text, Video, Hình ảnh & Khác). |
+| 7 | `/api/v1/projects/{projectId}/dashboard/recently-viewed` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Hỗ trợ query param `limit` (mặc định 5).<br>• Trả về danh sách tệp gần nhất trong dự án kèm `name`, `type`, `size`, `sizeFormatted`, `createdAt` (chuẩn ISO-8601 UTC). |
+| 8 | `/api/v1/projects/{projectId}/dashboard/activities` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Hỗ trợ query param `limit` (mặc định 10).<br>• Trả về timeline dòng hoạt động gần đây của dự án (user action, target, userName, userAvatar, createdAt chuẩn ISO-8601 UTC). Tự động ghi nhận khi tải file và tạo dự án. |
 
 ---
 

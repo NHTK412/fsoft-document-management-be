@@ -13,6 +13,10 @@ import com.example.document_management.dto.request.ProjectCreateRequest;
 import com.example.document_management.dto.request.ProjectUpdateRequest;
 import com.example.document_management.dto.response.ApiResponse;
 import com.example.document_management.dto.response.ProjectResponse;
+import com.example.document_management.dto.response.ProjectActivityResponse;
+import com.example.document_management.dto.response.ProjectDashboardStatsResponse;
+import com.example.document_management.dto.response.RecentlyViewedDocResponse;
+import com.example.document_management.service.ProjectDashboardService;
 import com.example.document_management.service.ProjectService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -29,6 +33,7 @@ import lombok.RequiredArgsConstructor;
 public class ProjectController {
 
     private final ProjectService projectService;
+    private final ProjectDashboardService projectDashboardService;
 
     @PostMapping
     @Operation(summary = "Tạo dự án mới", description = "Tạo dự án làm việc mới. Người tạo mặc định sẽ là Project Owner (Chủ dự án)")
@@ -77,5 +82,34 @@ public class ProjectController {
             @AuthenticationPrincipal UserDetails userDetails) {
         projectService.deleteProject(projectId, userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.success(200, null, "Xóa dự án thành công!"));
+    }
+
+    @GetMapping("/{projectId}/dashboard/stats")
+    @Operation(summary = "Lấy số liệu thống kê chỉ số dự án", description = "Lấy các chỉ số tổng quan của dự án (tổng số tệp, dung lượng MinIO, hỏi đáp AI trong tuần, thành viên hoạt động) và phân bố định dạng tài liệu")
+    public ResponseEntity<ApiResponse<ProjectDashboardStatsResponse>> getDashboardStats(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        ProjectDashboardStatsResponse response = projectDashboardService.getDashboardStats(projectId, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy thống kê dự án thành công!"));
+    }
+
+    @GetMapping("/{projectId}/dashboard/recently-viewed")
+    @Operation(summary = "Lấy danh sách tài liệu truy cập gần đây", description = "Lấy danh sách tệp tài liệu được tải lên hoặc truy cập gần nhất trong dự án")
+    public ResponseEntity<ApiResponse<List<RecentlyViewedDocResponse>>> getRecentlyViewed(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @Parameter(description = "Số lượng bản ghi tối đa (mặc định 5)") @RequestParam(name = "limit", required = false, defaultValue = "5") Integer limit,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        List<RecentlyViewedDocResponse> response = projectDashboardService.getRecentlyViewed(projectId, limit, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy danh sách tài liệu gần đây thành công!"));
+    }
+
+    @GetMapping("/{projectId}/dashboard/activities")
+    @Operation(summary = "Dòng thời gian hoạt động của dự án", description = "Lấy timeline lịch sử hoạt động gần đây của dự án")
+    public ResponseEntity<ApiResponse<List<ProjectActivityResponse>>> getActivities(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @Parameter(description = "Số lượng bản ghi tối đa (mặc định 10)") @RequestParam(name = "limit", required = false, defaultValue = "10") Integer limit,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        List<ProjectActivityResponse> response = projectDashboardService.getActivities(projectId, limit, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy dòng thời gian hoạt động thành công!"));
     }
 }

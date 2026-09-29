@@ -27,10 +27,14 @@ import com.example.document_management.repository.DocumentRepository;
 import com.example.document_management.repository.ProjectInviteRepository;
 import com.example.document_management.repository.ProjectMemberRepository;
 import com.example.document_management.repository.ProjectRepository;
+import com.example.document_management.entity.ProjectActivity;
+import com.example.document_management.repository.ProjectActivityRepository;
 import com.example.document_management.repository.UserRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class ProjectService {
@@ -40,6 +44,7 @@ public class ProjectService {
     private final ProjectMemberRepository projectMemberRepository;
     private final DocumentRepository documentRepository;
     private final ProjectInviteRepository projectInviteRepository;
+    private final ProjectActivityRepository projectActivityRepository;
 
     private static final String[][] PALETTES = {
         {"#EEF2FF", "#4F46E5"}, // Indigo
@@ -95,6 +100,18 @@ public class ProjectService {
                     projectInviteRepository.save(invite);
                 }
             }
+        }
+
+        try {
+            projectActivityRepository.save(ProjectActivity.builder()
+                    .project(savedProject)
+                    .user(user)
+                    .userAction((user.getFullName() != null ? user.getFullName() : "Người dùng") + " đã khởi tạo dự án")
+                    .target(savedProject.getName())
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (Exception e) {
+            log.warn("Không thể lưu hoạt động tạo dự án: {}", e.getMessage());
         }
 
         return mapToProjectResponse(savedProject, ProjectMemberRoleEnum.ROLE_OWNER, 0L, 1L, 0L);

@@ -11,6 +11,7 @@ import java.util.List;
 @Repository
 public interface DocumentRepository extends JpaRepository<DocumentMetadata, Long> {
     List<DocumentMetadata> findByProjectId(Long projectId);
+    List<DocumentMetadata> findByProjectIdOrderByCreatedAtDesc(Long projectId, Pageable pageable);
 
     Page<DocumentMetadata> findByProjectId(Long projectId, Pageable pageable);
     Page<DocumentMetadata> findByProjectIdAndFileNameContainingIgnoreCase(Long projectId, String fileName, Pageable pageable);
