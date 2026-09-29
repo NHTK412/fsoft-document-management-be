@@ -295,13 +295,17 @@ public class DocumentService {
 
         Map<String, Object> response = restClient.post()
                 .uri("/api/v1/documents/upload")
+                .accept(MediaType.ALL)
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(request)
                 .retrieve()
                 .body(Map.class);
 
-        if (!response.get("status").equals("success")) {
-            throw new RuntimeException("Lỗi khi gửi yêu cầu sang python service");
+        if (response == null || !"success".equalsIgnoreCase(String.valueOf(response.get("status")))) {
+            String errorMsg = (response != null && response.get("message") != null) 
+                    ? String.valueOf(response.get("message")) 
+                    : "Lỗi khi gửi yêu cầu sang python service";
+            throw new RuntimeException(errorMsg);
         }
 
         return DocumentUploadResponse.builder()

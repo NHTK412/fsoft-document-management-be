@@ -450,4 +450,118 @@ public class ProjectMemberService {
         String last = parts[parts.length - 1];
         return last.isEmpty() ? "U" : last.substring(0, 1).toUpperCase();
     }
+
+    /**
+     * Lấy danh sách các lời mời đang chờ xử lý của người dùng hiện tại
+     */
+    @Transactional(readOnly = true)
+    public List<UserPendingInviteResponse> getMyPendingInvites(String currentUserEmail) {
+        List<ProjectInvite> invites = projectInviteRepository.findByEmailIgnoreCaseAndStatus(
+                currentUserEmail, ProjectInviteStatusEnum.PENDING);
+
+        Instant now = Instant.now();
+        List<UserPendingInviteResponse> results = new ArrayList<>();
+
+        for (ProjectInvite inv : invites) {
+            if (inv.getExpiresAt() != null && inv.getExpiresAt().isBefore(now)) {
+                inv.setStatus(ProjectInviteStatusEnum.EXPIRED);
+                projectInviteRepository.save(inv);
+                continue;
+            }
+
+            Project p = inv.getProject();
+            String inviterName = p != null && p.getOwner() != null ? p.getOwner().getFullName() : "Quản trị viên";
+            String inviterEmail = p != null && p.getOwner() != null ? p.getOwner().getEmail() : "";
+
+            results.add(UserPendingInviteResponse.builder()
+                    .id(inv.getId())
+                    .projectId(p != null ? p.getId() : null)
+                    .projectName(p != null ? p.getName() : "Dự án")
+                    .projectDescription(p != null ? p.getDescription() : "")
+                    .role(inv.getRole() != null ? inv.getRole() : ProjectMemberRoleEnum.ROLE_MEMBER)
+                    .inviterName(inviterName)
+                    .inviterEmail(inviterEmail)
+                    .sentDate(inv.getSentDate())
+                    .expiresAt(inv.getExpiresAt())
+                    .build());
+        }
+
+        return results;
+    }
+
+    /**
+     * Người dùng chấp nhận lời mời tham gia dự án
+     */
+    @Transactional
+    public void acceptInvite(Long inviteId, String currentUserEmail) {
+        ProjectInvite invite = projectInviteRepository.findById(inviteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lời mời với ID: " + inviteId));
+
+        if (!invite.getEmail().equalsIgnoreCase(currentUserEmail)) {
+            throw new AccessDeniedException("Bạn không có quyền xử lý lời mời này.");
+        }
+
+        if (invite.getStatus() != ProjectInviteStatusEnum.PENDING) {
+            throw new IllegalArgumentException("Lời mời này không ở trạng thái chờ xử lý (trạng thái: " + invite.getStatus() + ").");
+        }
+
+        if (invite.getExpiresAt() != null && invite.getExpiresAt().isBefore(Instant.now())) {
+            invite.setStatus(ProjectInviteStatusEnum.EXPIRED);
+            projectInviteRepository.save(invite);
+            throw new IllegalArgumentException("Lời mời tham gia dự án đã hết hạn sử dụng.");
+        }
+
+        User user = userRepository.findByEmail(currentUserEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy thông tin người dùng."));
+
+        Project project = invite.getProject();
+        if (project == null) {
+            throw new ResourceNotFoundException("Không tìm thấy thông tin dự án liên kết với lời mời.");
+        }
+
+        if (!projectMemberRepository.existsByProjectIdAndUserEmail(project.getId(), currentUserEmail)) {
+            ProjectMember member = ProjectMember.builder()
+                    .project(project)
+                    .user(user)
+                    .role(invite.getRole() != null ? invite.getRole() : ProjectMemberRoleEnum.ROLE_MEMBER)
+                    .joinedAt(Instant.now())
+                    .build();
+            projectMemberRepository.save(member);
+        }
+
+        invite.setStatus(ProjectInviteStatusEnum.ACCEPTED);
+        projectInviteRepository.save(invite);
+
+        try {
+            projectActivityRepository.save(ProjectActivity.builder()
+                    .project(project)
+                    .user(user)
+                    .userAction("Thành viên " + user.getFullName() + " đã chấp nhận lời mời tham gia dự án")
+                    .target(user.getFullName())
+                    .createdAt(Instant.now())
+                    .build());
+        } catch (Exception e) {
+            log.warn("Không thể lưu hoạt động tham gia dự án: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Người dùng từ chối lời mời tham gia dự án
+     */
+    @Transactional
+    public void declineInvite(Long inviteId, String currentUserEmail) {
+        ProjectInvite invite = projectInviteRepository.findById(inviteId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy lời mời với ID: " + inviteId));
+
+        if (!invite.getEmail().equalsIgnoreCase(currentUserEmail)) {
+            throw new AccessDeniedException("Bạn không có quyền xử lý lời mời này.");
+        }
+
+        if (invite.getStatus() != ProjectInviteStatusEnum.PENDING) {
+            throw new IllegalArgumentException("Lời mời này không ở trạng thái chờ xử lý.");
+        }
+
+        invite.setStatus(ProjectInviteStatusEnum.DECLINED);
+        projectInviteRepository.save(invite);
+    }
 }

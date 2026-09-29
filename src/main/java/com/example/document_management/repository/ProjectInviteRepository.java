@@ -13,5 +13,6 @@ public interface ProjectInviteRepository extends JpaRepository<ProjectInvite, Lo
     List<ProjectInvite> findByProjectIdAndStatus(Long projectId, ProjectInviteStatusEnum status);
     Optional<ProjectInvite> findByProjectIdAndEmail(Long projectId, String email);
     Optional<ProjectInvite> findByToken(String token);
+    List<ProjectInvite> findByEmailIgnoreCaseAndStatus(String email, ProjectInviteStatusEnum status);
     void deleteByProjectId(Long projectId);
 }
