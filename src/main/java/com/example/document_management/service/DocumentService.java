@@ -24,9 +24,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
@@ -46,6 +48,7 @@ public class DocumentService {
     private final ProjectMemberRepository projectMemberRepository;
     private final UserRepository userRepository;
     private final ProjectActivityRepository projectActivityRepository;
+    private final RestClient restClient;
 
     private static final String[] AUTHOR_COLORS = {
             "#4F46E5", "#0284C7", "#9333EA", "#D97706", "#DB2777", "#059669", "#DC2626", "#2563EB"
@@ -161,7 +164,9 @@ public class DocumentService {
                     ? author.getFullName()
                     : (author != null ? author.getEmail() : "Thành viên");
             String initials = extractInitials(authorName);
-            int colorIdx = author != null && author.getId() != null ? (int) (Math.abs(author.getId()) % AUTHOR_COLORS.length) : 0;
+            int colorIdx = author != null && author.getId() != null
+                    ? (int) (Math.abs(author.getId()) % AUTHOR_COLORS.length)
+                    : 0;
             String authorColor = AUTHOR_COLORS[colorIdx];
 
             String ext = extractExtension(doc.getFileName());
@@ -201,10 +206,12 @@ public class DocumentService {
     }
 
     /**
-     * Tải lên tài liệu mới vào dự án (hỗ trợ category, validate size và format của dự án)
+     * Tải lên tài liệu mới vào dự án (hỗ trợ category, validate size và format của
+     * dự án)
      */
     @Transactional
-    public DocumentUploadResponse uploadDocumentExplorer(Long projectId, MultipartFile file, String category, String email) {
+    public DocumentUploadResponse uploadDocumentExplorer(Long projectId, MultipartFile file, String category,
+            String email) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng chọn tệp để tải lên!");
         }
@@ -235,8 +242,9 @@ public class DocumentService {
         if (project.getAllowedFormats() != null && !project.getAllowedFormats().isBlank()) {
             String allowed = project.getAllowedFormats().toLowerCase();
             if (!allowed.contains(ext.toLowerCase())) {
-                throw new IllegalArgumentException("Định dạng tệp '." + ext + "' không được hỗ trợ trong dự án này (chỉ cho phép: "
-                        + project.getAllowedFormats() + ")!");
+                throw new IllegalArgumentException(
+                        "Định dạng tệp '." + ext + "' không được hỗ trợ trong dự án này (chỉ cho phép: "
+                                + project.getAllowedFormats() + ")!");
             }
         }
 
@@ -267,7 +275,8 @@ public class DocumentService {
             projectActivityRepository.save(ProjectActivity.builder()
                     .project(project)
                     .user(user)
-                    .userAction((user.getFullName() != null ? user.getFullName() : "Người dùng") + " đã tải lên tệp mới")
+                    .userAction(
+                            (user.getFullName() != null ? user.getFullName() : "Người dùng") + " đã tải lên tệp mới")
                     .target(originalFilename)
                     .createdAt(Instant.now())
                     .build());
@@ -277,8 +286,22 @@ public class DocumentService {
 
         // GỬI LÊN PYTHON SERVICE
 
+        Map<String, Object> request = new HashMap<>();
 
-        
+        request.put("project_id", projectId.toString());
+        request.put("object_name", s3Key);
+        request.put("bucket_name", "document-management");
+
+        Map<String, Object> response = restClient.post()
+                .uri("/api/v1/documents/upload")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(request)
+                .retrieve()
+                .body(Map.class);
+
+        if (!response.get("status").equals("success")) {
+            throw new RuntimeException("Lỗi khi gửi yêu cầu sang python service");
+        }
 
         return DocumentUploadResponse.builder()
                 .id(saved.getId())
@@ -301,8 +324,7 @@ public class DocumentService {
                 doc.getS3Key(),
                 expiresInSeconds,
                 TimeUnit.SECONDS,
-                Map.of("response-content-disposition", "inline")
-        );
+                Map.of("response-content-disposition", "inline"));
 
         return DocumentPreviewUrlResponse.builder()
                 .documentId(doc.getId())
@@ -324,8 +346,7 @@ public class DocumentService {
                 doc.getS3Key(),
                 expiresInSeconds,
                 TimeUnit.SECONDS,
-                Map.of("response-content-disposition", "attachment; filename=\"" + doc.getFileName() + "\"")
-        );
+                Map.of("response-content-disposition", "attachment; filename=\"" + doc.getFileName() + "\""));
 
         return DocumentDownloadUrlResponse.builder()
                 .downloadUrl(downloadUrl)
@@ -349,8 +370,8 @@ public class DocumentService {
         boolean isUploader = user.getId().equals(doc.getUploaderId());
         boolean isOwner = (project.getOwner() != null && project.getOwner().getId().equals(user.getId()))
                 || projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
-                .map(m -> m.getRole() == ProjectMemberRoleEnum.ROLE_OWNER)
-                .orElse(false);
+                        .map(m -> m.getRole() == ProjectMemberRoleEnum.ROLE_OWNER)
+                        .orElse(false);
 
         if (!isAdmin && !isOwner && !isUploader) {
             throw new AccessDeniedException("Chỉ người upload, chủ dự án hoặc Admin mới có quyền xóa tài liệu!");
@@ -390,8 +411,8 @@ public class DocumentService {
         boolean isAdmin = user.getRole() == UserRoleEnum.ROLE_ADMIN;
         boolean isOwner = (project.getOwner() != null && project.getOwner().getId().equals(user.getId()))
                 || projectMemberRepository.findByProjectIdAndUserId(projectId, user.getId())
-                .map(m -> m.getRole() == ProjectMemberRoleEnum.ROLE_OWNER)
-                .orElse(false);
+                        .map(m -> m.getRole() == ProjectMemberRoleEnum.ROLE_OWNER)
+                        .orElse(false);
 
         List<DocumentMetadata> docs = documentRepository.findByIdInAndProjectId(documentIds, projectId);
         int deletedCount = 0;
@@ -441,7 +462,8 @@ public class DocumentService {
                 .build();
     }
 
-    public Page<DocumentMetadataResponse> getDocumentsByProject(Long projectId, String search, String type, String email, Pageable pageable) {
+    public Page<DocumentMetadataResponse> getDocumentsByProject(Long projectId, String search, String type,
+            String email, Pageable pageable) {
         if (!projectRepository.existsById(projectId)) {
             throw new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId);
         }
@@ -454,7 +476,8 @@ public class DocumentService {
         boolean hasType = type != null && !type.isBlank();
 
         if (hasSearch && hasType) {
-            docs = documentRepository.findByProjectIdAndFileNameContainingIgnoreCaseAndContentTypeContainingIgnoreCase(projectId, search, type, pageable);
+            docs = documentRepository.findByProjectIdAndFileNameContainingIgnoreCaseAndContentTypeContainingIgnoreCase(
+                    projectId, search, type, pageable);
         } else if (hasSearch) {
             docs = documentRepository.findByProjectIdAndFileNameContainingIgnoreCase(projectId, search, pageable);
         } else if (hasType) {
@@ -587,22 +610,28 @@ public class DocumentService {
     }
 
     private String extractInitials(String fullName) {
-        if (fullName == null || fullName.isBlank()) return "U";
+        if (fullName == null || fullName.isBlank())
+            return "U";
         String[] parts = fullName.trim().split("\\s+");
         String last = parts[parts.length - 1];
         return last.isEmpty() ? "U" : last.substring(0, 1).toUpperCase();
     }
 
     private String formatBytes(long bytes) {
-        if (bytes <= 0) return "0 B";
-        if (bytes < 1024) return bytes + " B";
-        if (bytes < 1024 * 1024) return String.format(Locale.US, "%.1f KB", bytes / 1024.0);
-        if (bytes < 1024 * 1024 * 1024) return String.format(Locale.US, "%.2f MB", bytes / (1024.0 * 1024.0));
+        if (bytes <= 0)
+            return "0 B";
+        if (bytes < 1024)
+            return bytes + " B";
+        if (bytes < 1024 * 1024)
+            return String.format(Locale.US, "%.1f KB", bytes / 1024.0);
+        if (bytes < 1024 * 1024 * 1024)
+            return String.format(Locale.US, "%.2f MB", bytes / (1024.0 * 1024.0));
         return String.format(Locale.US, "%.2f GB", bytes / (1024.0 * 1024.0 * 1024.0));
     }
 
     private long parseSizeLimit(String sizeStr) {
-        if (sizeStr == null || sizeStr.isBlank()) return 100L * 1024 * 1024;
+        if (sizeStr == null || sizeStr.isBlank())
+            return 100L * 1024 * 1024;
         String cleaned = sizeStr.trim().toUpperCase();
         try {
             if (cleaned.endsWith("GB")) {
