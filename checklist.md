@@ -94,13 +94,13 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 19 | `/api/v1/projects/{projectId}/members` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy danh sách thành viên dự án, hỗ trợ param `search` (tên/email).<br>• Trả về: `id`, `name`, `email`, `role`, `avatarBg`, `initial`, `joinedDate`, `contributions` (số tệp upload). |
-| 20 | `/api/v1/projects/{projectId}/invites` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy danh sách lời mời đang chờ (Pending Invites): `[{ id, email, role, sentDate, expiresIn }]`. |
-| 21 | `/api/v1/projects/{projectId}/invites` | `POST` | Chưa có | 🔴 **Thêm mới** | • Gửi lời mời thành viên qua email: body `{ "email": "...", "role": "Member" }`.<br>• Sinh invite token, hạn sử dụng, trả về status `201 Created`. |
-| 22 | `/api/v1/projects/{projectId}/members/{memberId}/role` | `PATCH` | Chưa có | 🔴 **Thêm mới** | • Cập nhật vai trò thành viên trong dự án: body `{ "role": "Admin" / "Member" / "Viewer" }`.<br>• Kiểm tra quyền Project Owner/Admin. |
-| 23 | `/api/v1/projects/{projectId}/invites/{inviteId}/resend` | `POST` | Chưa có | 🔴 **Thêm mới** | • Gửi lại email lời mời tham gia dự án. |
-| 24 | `/api/v1/projects/{projectId}/invites/{inviteId}` | `DELETE` | Chưa có | 🔴 **Thêm mới** | • Hủy lời mời đang chờ xử lý. |
-| 25 | `/api/v1/projects/{projectId}/members/{memberId}` | `DELETE` | Chưa có | 🔴 **Thêm mới** | • Xóa thành viên khỏi dự án. Không cho phép xóa Project Owner. |
+| 19 | `/api/v1/projects/{projectId}/members` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Đã hỗ trợ tìm kiếm theo param `search` (tên/email).<br>• Trả về danh sách thành viên: `id`, `name`, `email`, `role`, `avatarBg`, `initial`, `joinedDate`, `contributions` ("X tệp tải lên"). |
+| 20 | `/api/v1/projects/{projectId}/invites` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Lấy danh sách lời mời đang chờ (Pending Invites) kèm `id`, `email`, `role`, `sentDate`, `expiresIn` (ví dụ "7 ngày"), `expiresAt` (ISO-8601 UTC). |
+| 21 | `/api/v1/projects/{projectId}/invites` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Gửi lời mời thành viên: body `{ "email": "...", "role": "..." }`.<br>• Kiểm tra trùng lặp email thành viên/lời mời đang chờ, tạo token ngẫu nhiên, hạn 7 ngày, trả về status `201 Created` và ghi nhận ProjectActivity. |
+| 22 | `/api/v1/projects/{projectId}/members/{memberId}/role` | `PATCH` | Đã xong | 🟢 **Đạt chuẩn** | • Cập nhật vai trò thành viên (`Admin`, `Member`, `Viewer`).<br>• Kiểm tra chặt chẽ quyền Owner/Admin, bảo vệ vai trò Project Owner không bị hạ quyền hoặc thay đổi. |
+| 23 | `/api/v1/projects/{projectId}/invites/{inviteId}/resend` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Gia hạn lời mời (làm mới hạn 7 ngày) và tạo token mới cho lời mời đang chờ. |
+| 24 | `/api/v1/projects/{projectId}/invites/{inviteId}` | `DELETE` | Đã xong | 🟢 **Đạt chuẩn** | • Hủy bản ghi lời mời đang chờ xử lý trong dự án. |
+| 25 | `/api/v1/projects/{projectId}/members/{memberId}` | `DELETE` | Đã xong | 🟢 **Đạt chuẩn** | • Xóa thành viên khỏi dự án và ghi nhận ProjectActivity.<br>• Chặn tuyệt đối hành động xóa Project Owner và Admin không được xóa Owner hoặc Admin khác. |
 
 ---
 
@@ -108,11 +108,11 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 26 | `/api/v1/projects/{projectId}/settings` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy cấu hình chi tiết dự án: `projectName`, `projectDesc`, `logoUrl`, `minioBucket`, `storageUsedBytes`, `storageLimitBytes`, `maxFileSize`, `allowedFormats`, `aiPersona: { temperature, systemPrompt }`. |
-| 27 | `/api/v1/projects/{projectId}/settings` | `PUT` | Chưa có | 🔴 **Thêm mới** | • Cập nhật cấu hình dự án, bao gồm giới hạn tệp, định dạng cho phép và cấu hình AI Persona (`temperature`, `systemPrompt`). |
-| 28 | `/api/v1/projects/{projectId}/transfer-ownership` | `POST` | Chưa có | 🔴 **Thêm mới** | • Chuyển quyền Project Owner sang cho email khác: body `{ "newOwnerEmail": "..." }`.<br>• Chỉ Owner hiện tại mới có quyền gọi. |
-| 29 | `/api/v1/projects/{projectId}/archive` | `POST` | Chưa có | 🔴 **Thêm mới** | • Chuyển trạng thái dự án sang lưu trữ (`status = archived` - Read only). |
-| 30 | `/api/v1/projects/{projectId}` | `DELETE` | Đã có | 🟡 **Chỉnh sửa** | • Bổ sung kiểm tra xác nhận an toàn: Body `{ "confirmationProjectName": "..." }` phải trùng khớp với tên dự án trước khi thực hiện xóa vĩnh viễn dữ liệu MinIO & DB. |
+| 26 | `/api/v1/projects/{projectId}/settings` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Lấy cấu hình chi tiết dự án: `projectName`, `projectDesc`, `logoUrl`, `minioBucket`, `storageUsedBytes`, `storageLimitBytes`, `maxFileSize`, `allowedFormats`, `aiPersona: { temperature, systemPrompt }`. |
+| 27 | `/api/v1/projects/{projectId}/settings` | `PUT` | Đã xong | 🟢 **Đạt chuẩn** | • Cập nhật cấu hình dự án (tên, mô tả, dung lượng tệp, định dạng cho phép, AI Persona: `temperature`, `systemPrompt`). Trả về `updatedAt` chuẩn ISO-8601 UTC và ghi nhận ProjectActivity. |
+| 28 | `/api/v1/projects/{projectId}/transfer-ownership` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Chuyển nhượng quyền chủ sở hữu sang email khác: body `{ "newOwnerEmail": "..." }`. Kiểm tra nghiêm ngặt quyền Project Owner, hạ quyền chủ sở hữu cũ xuống Admin và ghi nhận ProjectActivity. |
+| 29 | `/api/v1/projects/{projectId}/archive` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Chuyển trạng thái dự án sang lưu trữ (`status = archived` - Read only) và ghi nhận ProjectActivity. |
+| 30 | `/api/v1/projects/{projectId}` | `DELETE` | Đã xong | 🟢 **Đạt chuẩn** | • Bổ sung kiểm tra xác nhận an toàn: Body `{ "confirmationProjectName": "..." }` phải trùng khớp với tên dự án trước khi thực hiện xóa vĩnh viễn dữ liệu MinIO, DB và các bản ghi liên kết. |
 
 ---
 
@@ -120,13 +120,13 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 31 | `/api/v1/users/me/profile` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy thông tin hồ sơ mở rộng của người dùng hiện tại: `fullName`, `title`, `phone`, `role`, `initials`, `avatarUrl`. |
-| 32 | `/api/v1/users/me/profile` | `PUT` | Chưa có | 🔴 **Thêm mới** | • Cập nhật hồ sơ cá nhân: `{ fullName`, `title`, `phone }`. |
+| 31 | `/api/v1/users/me/profile` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Lấy thông tin hồ sơ mở rộng của người dùng: `id`, `fullName`, `title`, `email`, `phone`, `role`, `initials`, `avatarUrl`. |
+| 32 | `/api/v1/users/me/profile` | `PUT` | Đã xong | 🟢 **Đạt chuẩn** | • Cập nhật hồ sơ cá nhân: `{ fullName`, `title`, `phone }`. Lưu vào DB và trả về dữ liệu hồ sơ mới nhất. |
 | 33 | ~~/api/v1/users/me/preferences~~ | ~~PUT~~ | Đã hủy | ⚪ **Đã loại bỏ** | *(Đã hủy theo yêu cầu - không lưu theme/language/timezone ở BE)* |
-| 34 | `/api/v1/users/me/change-password` | `POST` | Chưa có | 🔴 **Thêm mới** | • Tách riêng API đổi mật khẩu: `{ currentPassword, newPassword }` (thay vì gộp chung trong `PUT /users/me`). |
-| 35 | `/api/v1/users/me/sessions` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy danh sách thiết bị/phiên đăng nhập hiện tại: `[{ id, deviceName, location, ip, isCurrent, deviceType, lastActive }]`. |
-| 36 | `/api/v1/users/me/sessions/{sessionId}` | `DELETE` | Chưa có | 🔴 **Thêm mới** | • Thu hồi một phiên đăng nhập thiết bị cụ thể. |
-| 37 | `/api/v1/users/me/sessions` | `DELETE` | Chưa có | 🔴 **Thêm mới** | • Đăng xuất khỏi tất cả các thiết bị khác (ngoại trừ phiên hiện tại). |
+| 34 | `/api/v1/users/me/change-password` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Tách riêng API đổi mật khẩu: `{ currentPassword, newPassword }`. Kiểm tra xác thực mật khẩu cũ và mã hóa BCrypt mật khẩu mới. |
+| 35 | `/api/v1/users/me/sessions` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Lấy danh sách thiết bị/phiên đăng nhập hiện tại: `[{ id, deviceName, location, ip, isCurrent, deviceType, lastActive }]` (lastActive chuẩn ISO-8601 UTC). Tự động khởi tạo phiên hiện tại từ User-Agent và IP nếu chưa có. |
+| 36 | `/api/v1/users/me/sessions/{sessionId}` | `DELETE` | Đã xong | 🟢 **Đạt chuẩn** | • Thu hồi phiên đăng nhập thiết bị chỉ định của người dùng hiện tại. |
+| 37 | `/api/v1/users/me/sessions` | `DELETE` | Đã xong | 🟢 **Đạt chuẩn** | • Đăng xuất khỏi tất cả các thiết bị khác, giữ lại phiên đang hoạt động hiện tại. |
 
 ---
 

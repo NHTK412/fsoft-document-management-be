@@ -107,4 +107,8 @@ public class StorageService {
     public String getDirectFileUrl(String s3Key) {
         return minioUrl + "/" + bucketName + "/" + s3Key;
     }
+
+    public String getBucketName() {
+        return bucketName;
+    }
 }

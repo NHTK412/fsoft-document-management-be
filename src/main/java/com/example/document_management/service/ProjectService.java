@@ -12,10 +12,18 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.example.document_management.dto.request.DeleteProjectConfirmRequest;
 import com.example.document_management.dto.request.ProjectCreateRequest;
 import com.example.document_management.dto.request.ProjectUpdateRequest;
+import com.example.document_management.dto.request.TransferOwnershipRequest;
+import com.example.document_management.dto.request.UpdateProjectSettingsRequest;
+import com.example.document_management.dto.response.AiPersonaDto;
 import com.example.document_management.dto.response.ProjectResponse;
+import com.example.document_management.dto.response.ProjectSettingsResponse;
+import com.example.document_management.dto.response.UpdateProjectSettingsResponse;
+import com.example.document_management.entity.DocumentMetadata;
 import com.example.document_management.entity.Project;
+import java.time.format.DateTimeFormatter;
 import com.example.document_management.entity.ProjectInvite;
 import com.example.document_management.entity.ProjectMember;
 import com.example.document_management.entity.User;
@@ -45,6 +53,7 @@ public class ProjectService {
     private final DocumentRepository documentRepository;
     private final ProjectInviteRepository projectInviteRepository;
     private final ProjectActivityRepository projectActivityRepository;
+    private final StorageService storageService;
 
     private static final String[][] PALETTES = {
         {"#EEF2FF", "#4F46E5"}, // Indigo
@@ -218,8 +227,200 @@ public class ProjectService {
         return mapToProjectResponse(updated, currentUserRole, totalFiles, totalMembers, storageUsedBytes);
     }
 
+    // -------------------------------------------------------------
+    // PROJECT SETTINGS ENDPOINTS (Screen 3.7: ProjectSettings.jsx)
+    // -------------------------------------------------------------
+
+    @Transactional(readOnly = true)
+    public ProjectSettingsResponse getProjectSettings(Long projectId, String email) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserEmail(projectId, email);
+        boolean isMember = memberOpt.isPresent();
+        boolean isSystemAdmin = user.getRole() == UserRoleEnum.ROLE_ADMIN;
+
+        if (!isMember && !isSystemAdmin) {
+            throw new AccessDeniedException("Bạn không có quyền truy cập vào cài đặt của dự án này!");
+        }
+
+        Long storageUsedBytes = documentRepository.sumFileSizeByProjectId(projectId);
+        List<String> allowedFormats = new ArrayList<>();
+        if (project.getAllowedFormats() != null && !project.getAllowedFormats().isBlank()) {
+            for (String f : project.getAllowedFormats().split(",")) {
+                if (!f.trim().isBlank()) {
+                    allowedFormats.add(f.trim());
+                }
+            }
+        }
+
+        AiPersonaDto aiPersona = AiPersonaDto.builder()
+                .temperature(project.getAiTemperature() != null ? project.getAiTemperature() : 0.2)
+                .systemPrompt(project.getAiSystemPrompt())
+                .build();
+
+        return ProjectSettingsResponse.builder()
+                .projectName(project.getName())
+                .projectDesc(project.getDescription())
+                .logoUrl(project.getLogoUrl())
+                .minioBucket(storageService.getBucketName())
+                .storageUsedBytes(storageUsedBytes != null ? storageUsedBytes : 0L)
+                .storageLimitBytes(project.getStorageLimitBytes() != null ? project.getStorageLimitBytes() : 10737418240L)
+                .maxFileSize(project.getMaxFileSize() != null ? project.getMaxFileSize() : "50 MB")
+                .allowedFormats(allowedFormats)
+                .aiPersona(aiPersona)
+                .build();
+    }
+
     @Transactional
-    public void deleteProject(Long projectId, String email) {
+    public UpdateProjectSettingsResponse updateProjectSettings(Long projectId, String email, UpdateProjectSettingsRequest request) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserEmail(projectId, email);
+        boolean isOwnerOrAdmin = memberOpt.isPresent() &&
+                (memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_OWNER || memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_ADMIN);
+        boolean isSystemAdmin = user.getRole() == UserRoleEnum.ROLE_ADMIN;
+
+        if (!isOwnerOrAdmin && !isSystemAdmin) {
+            throw new AccessDeniedException("Chỉ chủ dự án (Project Owner) hoặc Quản trị viên (Admin) mới có quyền cập nhật cấu hình dự án!");
+        }
+
+        if (request.getProjectName() != null && !request.getProjectName().isBlank()) {
+            project.setName(request.getProjectName().trim());
+        }
+        if (request.getProjectDesc() != null) {
+            project.setDescription(request.getProjectDesc().trim());
+        }
+        if (request.getMaxFileSize() != null && !request.getMaxFileSize().isBlank()) {
+            project.setMaxFileSize(request.getMaxFileSize().trim());
+        }
+        if (request.getAllowedFormats() != null) {
+            project.setAllowedFormats(String.join(",", request.getAllowedFormats()));
+        }
+        if (request.getAiPersona() != null) {
+            if (request.getAiPersona().getTemperature() != null) {
+                project.setAiTemperature(request.getAiPersona().getTemperature());
+            }
+            if (request.getAiPersona().getSystemPrompt() != null) {
+                project.setAiSystemPrompt(request.getAiPersona().getSystemPrompt());
+            }
+        }
+
+        Instant now = Instant.now();
+        project.setUpdatedAt(now);
+        projectRepository.save(project);
+
+        projectActivityRepository.save(ProjectActivity.builder()
+                .project(project)
+                .user(user)
+                .userAction("Cập nhật cấu hình dự án")
+                .target(project.getName())
+                .createdAt(now)
+                .build());
+
+        return UpdateProjectSettingsResponse.builder()
+                .updatedAt(DateTimeFormatter.ISO_INSTANT.format(now))
+                .build();
+    }
+
+    @Transactional
+    public void transferOwnership(Long projectId, String email, TransferOwnershipRequest request) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        User currentUser = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        Optional<ProjectMember> currentMemberOpt = projectMemberRepository.findByProjectIdAndUserEmail(projectId, email);
+        boolean isOwner = currentMemberOpt.isPresent() && currentMemberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_OWNER;
+        boolean isSystemAdmin = currentUser.getRole() == UserRoleEnum.ROLE_ADMIN;
+
+        if (!isOwner && !isSystemAdmin) {
+            throw new AccessDeniedException("Chỉ chủ sở hữu dự án (Project Owner) mới có quyền chuyển nhượng dự án!");
+        }
+
+        User newOwner = userRepository.findByEmail(request.getNewOwnerEmail().trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với email: " + request.getNewOwnerEmail()));
+
+        if (newOwner.getId().equals(project.getOwner().getId())) {
+            throw new IllegalArgumentException("Người dùng này đã là chủ sở hữu của dự án!");
+        }
+
+        // Cập nhật vai trò của owner cũ xuống ROLE_ADMIN
+        if (currentMemberOpt.isPresent()) {
+            ProjectMember oldOwnerMember = currentMemberOpt.get();
+            oldOwnerMember.setRole(ProjectMemberRoleEnum.ROLE_ADMIN);
+            projectMemberRepository.save(oldOwnerMember);
+        }
+
+        // Cập nhật hoặc thêm vai trò ROLE_OWNER cho owner mới
+        Optional<ProjectMember> newOwnerMemberOpt = projectMemberRepository.findByProjectIdAndUserId(projectId, newOwner.getId());
+        if (newOwnerMemberOpt.isPresent()) {
+            ProjectMember newOwnerMember = newOwnerMemberOpt.get();
+            newOwnerMember.setRole(ProjectMemberRoleEnum.ROLE_OWNER);
+            projectMemberRepository.save(newOwnerMember);
+        } else {
+            ProjectMember newMember = ProjectMember.builder()
+                    .project(project)
+                    .user(newOwner)
+                    .role(ProjectMemberRoleEnum.ROLE_OWNER)
+                    .joinedAt(Instant.now())
+                    .build();
+            projectMemberRepository.save(newMember);
+        }
+
+        project.setOwner(newOwner);
+        project.setUpdatedAt(Instant.now());
+        projectRepository.save(project);
+
+        projectActivityRepository.save(ProjectActivity.builder()
+                .project(project)
+                .user(currentUser)
+                .userAction("Chuyển nhượng quyền chủ dự án")
+                .target(newOwner.getFullName() != null ? newOwner.getFullName() : newOwner.getEmail())
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
+    public void archiveProject(Long projectId, String email) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserEmail(projectId, email);
+        boolean isOwnerOrAdmin = memberOpt.isPresent() &&
+                (memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_OWNER || memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_ADMIN);
+        boolean isSystemAdmin = user.getRole() == UserRoleEnum.ROLE_ADMIN;
+
+        if (!isOwnerOrAdmin && !isSystemAdmin) {
+            throw new AccessDeniedException("Chỉ chủ dự án (Project Owner) hoặc Quản trị viên (Admin) mới có quyền lưu trữ dự án!");
+        }
+
+        project.setStatus("archived");
+        project.setUpdatedAt(Instant.now());
+        projectRepository.save(project);
+
+        projectActivityRepository.save(ProjectActivity.builder()
+                .project(project)
+                .user(user)
+                .userAction("Lưu trữ dự án (Read-only)")
+                .target(project.getName())
+                .createdAt(Instant.now())
+                .build());
+    }
+
+    @Transactional
+    public void deleteProject(Long projectId, String email, DeleteProjectConfirmRequest request) {
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
 
@@ -234,8 +435,33 @@ public class ProjectService {
             throw new AccessDeniedException("Chỉ chủ dự án (Project Owner) hoặc Admin hệ thống mới có quyền xóa dự án!");
         }
 
+        if (request != null && request.getConfirmationProjectName() != null && !request.getConfirmationProjectName().isBlank()) {
+            if (!request.getConfirmationProjectName().trim().equals(project.getName().trim())) {
+                throw new IllegalArgumentException("Tên dự án xác nhận không trùng khớp!");
+            }
+        }
+
+        // Xóa các file trên MinIO
+        List<DocumentMetadata> docs = documentRepository.findByProjectId(projectId);
+        for (DocumentMetadata doc : docs) {
+            if (doc.getS3Key() != null && !doc.getS3Key().isBlank()) {
+                try {
+                    storageService.deleteFile(doc.getS3Key());
+                } catch (Exception e) {
+                    log.warn("Không thể xóa file MinIO '{}': {}", doc.getS3Key(), e.getMessage());
+                }
+            }
+        }
+
         documentRepository.deleteByProjectId(projectId);
+        projectInviteRepository.deleteByProjectId(projectId);
+        projectActivityRepository.deleteByProjectId(projectId);
         projectRepository.delete(project);
+    }
+
+    @Transactional
+    public void deleteProject(Long projectId, String email) {
+        deleteProject(projectId, email, null);
     }
 
     private ProjectResponse mapToProjectResponse(

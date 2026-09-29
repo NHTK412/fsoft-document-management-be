@@ -22,6 +22,7 @@ public interface DocumentRepository extends JpaRepository<DocumentMetadata, Long
     Page<DocumentMetadata> findByProjectIdAndFileNameContainingIgnoreCaseAndContentTypeContainingIgnoreCase(Long projectId, String fileName, String contentType, Pageable pageable);
 
     long countByProjectId(Long projectId);
+    long countByProjectIdAndUploaderId(Long projectId, Long uploaderId);
 
     List<DocumentMetadata> findByIdInAndProjectId(List<Long> ids, Long projectId);
 
