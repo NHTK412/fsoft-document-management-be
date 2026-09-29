@@ -18,5 +18,9 @@ public interface DocumentRepository extends JpaRepository<DocumentMetadata, Long
     Page<DocumentMetadata> findByProjectIdAndFileNameContainingIgnoreCaseAndContentTypeContainingIgnoreCase(Long projectId, String fileName, String contentType, Pageable pageable);
 
     long countByProjectId(Long projectId);
+
+    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(d.fileSize), 0) FROM DocumentMetadata d WHERE d.projectId = :projectId")
+    Long sumFileSizeByProjectId(@org.springframework.data.repository.query.Param("projectId") Long projectId);
+
     void deleteByProjectId(Long projectId);
 }

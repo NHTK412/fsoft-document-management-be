@@ -51,8 +51,8 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 4 | `/api/v1/projects` | `GET` | Đã có | 🟡 **Chỉnh sửa** | • Bổ sung bộ lọc query parameters: `search` (tên/mô tả), `role` (`all`, `owner`, `admin`, `member`), `status` (`active`, `archived`).<br>• Chuẩn hóa DTO `ProjectResponse` theo FE: `title` (thay vì chỉ `name`), `status`, `storageUsed`, `storageLimit`, `activeMembers`, `updatedAt`. |
-| 5 | `/api/v1/projects` | `POST` | Đã có | 🟡 **Chỉnh sửa** | • Cập nhật `ProjectCreateRequest` để nhận thêm: `title` (map với `name`), `maxFileSize`, `allowedFormats`.<br>• Trả về HTTP status `201 Created`.<br>• Lưu các trường cấu hình file vào bảng `projects`. |
+| 4 | `/api/v1/projects` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Đã bổ sung query params `search`, `role`, `status`.<br>• DTO `ProjectResponse` đầy đủ các trường `title`, `desc`, `role`, `status`, `storageUsed`, `storageLimit`, `activeMembers`, `updatedAt` (chuẩn ISO-8601: `2026-09-29T06:05:18.342Z`), `avatars`, `iconBg`, `iconColor`. |
+| 5 | `/api/v1/projects` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Nhận `name`/`title`, `description`, `maxFileSize`, `allowedFormats`, `inviteEmails`.<br>• Trả về HTTP `201 Created` kèm `code: 201`.<br>• Tự động tạo bản ghi lời mời thành viên ban đầu nếu có. |
 
 ---
 

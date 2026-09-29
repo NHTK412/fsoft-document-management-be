@@ -187,6 +187,7 @@ public class DocumentService {
                 .projectId(doc.getProjectId())
                 .uploaderId(doc.getUploaderId())
                 .createdAt(doc.getCreatedAt())
+                .updatedAt(doc.getUpdatedAt() != null ? doc.getUpdatedAt() : doc.getCreatedAt())
                 .build();
     }
 }

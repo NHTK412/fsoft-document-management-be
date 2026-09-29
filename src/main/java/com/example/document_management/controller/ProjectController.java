@@ -3,11 +3,7 @@ package com.example.document_management.controller;
 import java.util.List;
 
 import jakarta.validation.Valid;
-import org.springdoc.core.annotations.ParameterObject;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -40,15 +36,18 @@ public class ProjectController {
             @AuthenticationPrincipal UserDetails userDetails,
             @Valid @RequestBody ProjectCreateRequest projectCreateRequest) {
         ProjectResponse response = projectService.createProject(userDetails.getUsername(), projectCreateRequest);
-        return ResponseEntity.ok(ApiResponse.success(200, response, "Tạo dự án mới thành công!"));
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(201, response, "Dự án đã được tạo thành công!"));
     }
 
     @GetMapping
-    @Operation(summary = "Lấy danh sách dự án tham gia", description = "Lấy danh sách phân trang tất cả các dự án mà người dùng hiện tại đang tham gia hoặc làm chủ sở hữu")
-    public ResponseEntity<ApiResponse<Page<ProjectResponse>>> getAllProjectByUser(
-            @ParameterObject @PageableDefault(size = 10, sort = "id", direction = Sort.Direction.DESC) Pageable pageable,
+    @Operation(summary = "Lấy danh sách dự án tham gia", description = "Lấy danh sách tất cả các dự án mà người dùng hiện tại đang tham gia, hỗ trợ tìm kiếm và lọc theo vai trò, trạng thái")
+    public ResponseEntity<ApiResponse<List<ProjectResponse>>> getAllProjectByUser(
+            @Parameter(description = "Từ khóa tìm kiếm tên hoặc mô tả dự án") @RequestParam(name = "search", required = false) String search,
+            @Parameter(description = "Lọc theo vai trò: all | owner | admin | member") @RequestParam(name = "role", required = false) String role,
+            @Parameter(description = "Lọc theo trạng thái: active | archived") @RequestParam(name = "status", required = false) String status,
             @AuthenticationPrincipal UserDetails userDetails) {
-        Page<ProjectResponse> responses = projectService.getAllProjectByUser(userDetails.getUsername(), pageable);
+        List<ProjectResponse> responses = projectService.getAllProjects(userDetails.getUsername(), search, role, status);
         return ResponseEntity.ok(ApiResponse.success(200, responses, "Lấy danh sách dự án thành công!"));
     }
 
