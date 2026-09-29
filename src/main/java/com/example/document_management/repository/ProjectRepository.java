@@ -22,7 +22,7 @@ public interface ProjectRepository extends JpaRepository<Project, Long> {
     @Query(value = "SELECT DISTINCT p FROM Project p LEFT JOIN FETCH p.owner " +
             "JOIN p.projectMembers m " +
             "WHERE m.user.email = :email " +
-            "AND (:search IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', :search, '%'))) " +
+            "AND (CAST(:search AS string) IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) OR LOWER(p.description) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%'))) " +
             "AND (:status IS NULL OR p.status = :status) " +
             "AND (:role IS NULL OR :role = 'all' OR " +
             "     (:role = 'owner' AND m.role = 'ROLE_OWNER') OR " +

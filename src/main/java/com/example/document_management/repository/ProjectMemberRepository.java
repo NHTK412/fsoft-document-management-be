@@ -16,7 +16,7 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, Lo
     List<ProjectMember> findByProjectId(Long projectId);
 
     @org.springframework.data.jpa.repository.Query("SELECT pm FROM ProjectMember pm WHERE pm.project.id = :projectId " +
-            "AND (:search IS NULL OR LOWER(pm.user.fullName) LIKE LOWER(CONCAT('%', :search, '%')) OR LOWER(pm.user.email) LIKE LOWER(CONCAT('%', :search, '%')))")
+            "AND (CAST(:search AS string) IS NULL OR LOWER(pm.user.fullName) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')) OR LOWER(pm.user.email) LIKE LOWER(CONCAT('%', CAST(:search AS string), '%')))")
     List<ProjectMember> searchMembers(@org.springframework.data.repository.query.Param("projectId") Long projectId, @org.springframework.data.repository.query.Param("search") String search);
 
     void deleteByProjectId(Long projectId);
