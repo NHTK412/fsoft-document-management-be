@@ -9,10 +9,15 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import com.example.document_management.dto.request.DeleteProjectConfirmRequest;
 import com.example.document_management.dto.request.ProjectCreateRequest;
 import com.example.document_management.dto.request.ProjectUpdateRequest;
+import com.example.document_management.dto.request.TransferOwnershipRequest;
+import com.example.document_management.dto.request.UpdateProjectSettingsRequest;
 import com.example.document_management.dto.response.ApiResponse;
 import com.example.document_management.dto.response.ProjectResponse;
+import com.example.document_management.dto.response.ProjectSettingsResponse;
+import com.example.document_management.dto.response.UpdateProjectSettingsResponse;
 import com.example.document_management.dto.response.ProjectActivityResponse;
 import com.example.document_management.dto.response.ProjectDashboardStatsResponse;
 import com.example.document_management.dto.response.RecentlyViewedDocResponse;
@@ -75,13 +80,52 @@ public class ProjectController {
         return ResponseEntity.ok(ApiResponse.success(200, response, "Cập nhật thông tin dự án thành công!"));
     }
 
+    @GetMapping("/{projectId}/settings")
+    @Operation(summary = "Lấy cấu hình chi tiết dự án", description = "Lấy thông tin cấu hình dự án, bao gồm giới hạn lưu trữ, định dạng tệp và AI Persona")
+    public ResponseEntity<ApiResponse<ProjectSettingsResponse>> getProjectSettings(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        ProjectSettingsResponse response = projectService.getProjectSettings(projectId, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Lấy cấu hình dự án thành công!"));
+    }
+
+    @PutMapping("/{projectId}/settings")
+    @Operation(summary = "Cập nhật cấu hình dự án", description = "Cập nhật cài đặt dự án (tên, mô tả, dung lượng tệp, định dạng cho phép, cấu hình AI Persona)")
+    public ResponseEntity<ApiResponse<UpdateProjectSettingsResponse>> updateProjectSettings(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody UpdateProjectSettingsRequest request) {
+        UpdateProjectSettingsResponse response = projectService.updateProjectSettings(projectId, userDetails.getUsername(), request);
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Cài đặt dự án đã được lưu thành công!"));
+    }
+
+    @PostMapping("/{projectId}/transfer-ownership")
+    @Operation(summary = "Chuyển nhượng quyền chủ sở hữu dự án", description = "Chuyển giao quyền Project Owner sang cho email thành viên khác. Chỉ Owner hiện tại mới có quyền gọi.")
+    public ResponseEntity<ApiResponse<Void>> transferOwnership(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody TransferOwnershipRequest request) {
+        projectService.transferOwnership(projectId, userDetails.getUsername(), request);
+        return ResponseEntity.ok(ApiResponse.success(200, null, "Đã chuyển nhượng quyền Project Owner thành công"));
+    }
+
+    @PostMapping("/{projectId}/archive")
+    @Operation(summary = "Lưu trữ dự án", description = "Chuyển trạng thái dự án sang lưu trữ (Read-only)")
+    public ResponseEntity<ApiResponse<Void>> archiveProject(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        projectService.archiveProject(projectId, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, null, "Dự án đã được chuyển sang chế độ lưu trữ (Read-only)"));
+    }
+
     @DeleteMapping("/{projectId}")
-    @Operation(summary = "Xóa dự án", description = "Chỉ dành cho Project Owner hoặc Admin. Xóa vĩnh viễn dự án cùng toàn bộ thành viên và tài liệu liên kết")
+    @Operation(summary = "Xóa vĩnh viễn dự án", description = "Xóa vĩnh viễn dự án và toàn bộ dữ liệu MinIO, DB sau khi xác nhận an toàn tên dự án")
     public ResponseEntity<ApiResponse<Void>> deleteProject(
             @Parameter(description = "ID của dự án cần xóa") @PathVariable Long projectId,
-            @AuthenticationPrincipal UserDetails userDetails) {
-        projectService.deleteProject(projectId, userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success(200, null, "Xóa dự án thành công!"));
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestBody(required = false) DeleteProjectConfirmRequest request) {
+        projectService.deleteProject(projectId, userDetails.getUsername(), request);
+        return ResponseEntity.ok(ApiResponse.success(200, null, "Dự án và toàn bộ dữ liệu MinIO, vector đã bị xóa vĩnh viễn"));
     }
 
     @GetMapping("/{projectId}/dashboard/stats")

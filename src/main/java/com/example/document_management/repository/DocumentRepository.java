@@ -4,12 +4,15 @@ import com.example.document_management.entity.DocumentMetadata;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface DocumentRepository extends JpaRepository<DocumentMetadata, Long> {
+public interface DocumentRepository extends JpaRepository<DocumentMetadata, Long>, JpaSpecificationExecutor<DocumentMetadata> {
     List<DocumentMetadata> findByProjectId(Long projectId);
     List<DocumentMetadata> findByProjectIdOrderByCreatedAtDesc(Long projectId, Pageable pageable);
 
@@ -19,9 +22,12 @@ public interface DocumentRepository extends JpaRepository<DocumentMetadata, Long
     Page<DocumentMetadata> findByProjectIdAndFileNameContainingIgnoreCaseAndContentTypeContainingIgnoreCase(Long projectId, String fileName, String contentType, Pageable pageable);
 
     long countByProjectId(Long projectId);
+    long countByProjectIdAndUploaderId(Long projectId, Long uploaderId);
 
-    @org.springframework.data.jpa.repository.Query("SELECT COALESCE(SUM(d.fileSize), 0) FROM DocumentMetadata d WHERE d.projectId = :projectId")
-    Long sumFileSizeByProjectId(@org.springframework.data.repository.query.Param("projectId") Long projectId);
+    List<DocumentMetadata> findByIdInAndProjectId(List<Long> ids, Long projectId);
+
+    @Query("SELECT COALESCE(SUM(d.fileSize), 0) FROM DocumentMetadata d WHERE d.projectId = :projectId")
+    Long sumFileSizeByProjectId(@Param("projectId") Long projectId);
 
     void deleteByProjectId(Long projectId);
 }

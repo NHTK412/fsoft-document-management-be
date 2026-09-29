@@ -13,4 +13,8 @@ public interface UserSessionRepository extends JpaRepository<UserSession, Long> 
     Optional<UserSession> findByIdAndUserId(Long id, Long userId);
     void deleteByUserIdAndIdNot(Long userId, Long currentSessionId);
     void deleteByUserId(Long userId);
+
+    @org.springframework.data.jpa.repository.Modifying
+    @org.springframework.data.jpa.repository.Query("UPDATE UserSession s SET s.isCurrent = false WHERE s.user.id = :userId")
+    void resetCurrentSessionByUserId(@org.springframework.data.repository.query.Param("userId") Long userId);
 }

@@ -14,6 +14,7 @@ public class ApiResponse<T> {
     private Integer statusCode; 
     private String message;
     private T data;
+    private java.util.Map<String, Object> meta;
     private String errorCode;
     private String timestamp;
 
@@ -36,6 +37,16 @@ public class ApiResponse<T> {
                 .statusCode(statusCode)
                 .data(data)
                 .message(message)
+                .build();
+    }
+
+    public static <T> ApiResponse<T> success(int statusCode, T data, String message, java.util.Map<String, Object> meta) {
+        return ApiResponse.<T>builder()
+                .success(true)
+                .statusCode(statusCode)
+                .data(data)
+                .message(message)
+                .meta(meta)
                 .build();
     }
 
