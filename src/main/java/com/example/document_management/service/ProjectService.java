@@ -76,7 +76,7 @@ public class ProjectService {
 
         String allowedFormatsStr = (projectCreateRequest.getAllowedFormats() != null && !projectCreateRequest.getAllowedFormats().isEmpty())
                 ? String.join(",", projectCreateRequest.getAllowedFormats())
-                : "pdf,docx,xlsx,pptx,md,txt,images";
+                : "pdf,docx,doc,md,txt";
 
         Project newProject = Project.builder()
                 .name(projectCreateRequest.getEffectiveName())

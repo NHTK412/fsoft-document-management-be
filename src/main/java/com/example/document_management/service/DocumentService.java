@@ -55,6 +55,8 @@ public class DocumentService {
             "#4F46E5", "#0284C7", "#9333EA", "#D97706", "#DB2777", "#059669", "#DC2626", "#2563EB"
     };
 
+    public static final Set<String> ALLOWED_SYSTEM_EXTENSIONS = Set.of("pdf", "docx", "doc", "md", "txt");
+
     @Getter
     @AllArgsConstructor
     public static class DocumentFileView {
@@ -89,26 +91,27 @@ public class DocumentService {
         long totalSizeBytes = 0L;
         Map<String, Long> counts = new LinkedHashMap<>();
         counts.put("all", totalFiles);
-        counts.put("docs", 0L);
-        counts.put("sheets", 0L);
-        counts.put("media", 0L);
-        counts.put("images", 0L);
-        counts.put("code", 0L);
+        counts.put("pdf", 0L);
+        counts.put("word", 0L);
+        counts.put("md", 0L);
+        counts.put("txt", 0L);
 
         for (DocumentMetadata doc : allDocs) {
             if (doc.getFileSize() != null) {
                 totalSizeBytes += doc.getFileSize();
             }
-            String cat = doc.getCategory();
-            if (cat == null || cat.isBlank()) {
-                cat = inferCategory(doc.getFileName(), doc.getContentType());
+            String ext = extractExtension(doc.getFileName()).toLowerCase();
+            String cat = "pdf";
+            if (ext.equals("docx") || ext.equals("doc")) {
+                cat = "word";
+            } else if (ext.equals("md")) {
+                cat = "md";
+            } else if (ext.equals("txt")) {
+                cat = "txt";
+            } else if (ext.equals("pdf")) {
+                cat = "pdf";
             }
-            cat = cat.toLowerCase();
-            if (counts.containsKey(cat)) {
-                counts.put(cat, counts.get(cat) + 1);
-            } else {
-                counts.put("docs", counts.get("docs") + 1);
-            }
+            counts.put(cat, counts.getOrDefault(cat, 0L) + 1);
         }
 
         DocumentSummaryDto summary = DocumentSummaryDto.builder()
@@ -129,7 +132,20 @@ public class DocumentService {
 
             if (category != null && !category.trim().isEmpty() && !category.trim().equalsIgnoreCase("all")) {
                 String catParam = category.trim().toLowerCase();
-                predicates.add(cb.equal(cb.lower(root.get("category")), catParam));
+                if ("pdf".equals(catParam)) {
+                    predicates.add(cb.like(cb.lower(root.get("fileName")), "%.pdf"));
+                } else if ("word".equals(catParam) || "docx".equals(catParam) || "doc".equals(catParam)) {
+                    predicates.add(cb.or(
+                            cb.like(cb.lower(root.get("fileName")), "%.docx"),
+                            cb.like(cb.lower(root.get("fileName")), "%.doc")
+                    ));
+                } else if ("md".equals(catParam)) {
+                    predicates.add(cb.like(cb.lower(root.get("fileName")), "%.md"));
+                } else if ("txt".equals(catParam)) {
+                    predicates.add(cb.like(cb.lower(root.get("fileName")), "%.txt"));
+                } else {
+                    predicates.add(cb.equal(cb.lower(root.get("category")), catParam));
+                }
             }
 
             return cb.and(predicates.toArray(new Predicate[0]));
@@ -237,12 +253,18 @@ public class DocumentService {
             originalFilename = "unnamed_file";
         }
         originalFilename = Paths.get(originalFilename).getFileName().toString();
-        String ext = extractExtension(originalFilename);
+        String ext = extractExtension(originalFilename).toLowerCase();
 
-        // Validate allowedFormats của dự án nếu có
+        // 1. Kiểm tra định dạng hệ thống cho phép (chỉ pdf, docx, doc, md, txt)
+        if (!ALLOWED_SYSTEM_EXTENSIONS.contains(ext)) {
+            throw new IllegalArgumentException(
+                    "Định dạng tệp '." + ext + "' không được hỗ trợ! Hệ thống chỉ cho phép tải lên các tệp: PDF (.pdf), Word (.docx, .doc), Markdown (.md) và Text (.txt)!");
+        }
+
+        // 2. Validate allowedFormats của dự án nếu có
         if (project.getAllowedFormats() != null && !project.getAllowedFormats().isBlank()) {
             String allowed = project.getAllowedFormats().toLowerCase();
-            if (!allowed.contains(ext.toLowerCase())) {
+            if (!allowed.contains(ext)) {
                 throw new IllegalArgumentException(
                         "Định dạng tệp '." + ext + "' không được hỗ trợ trong dự án này (chỉ cho phép: "
                                 + project.getAllowedFormats() + ")!");
@@ -577,35 +599,20 @@ public class DocumentService {
     }
 
     public String inferCategory(String fileName, String contentType) {
-        String ext = extractExtension(fileName);
-        String mime = contentType != null ? contentType.toLowerCase() : "";
-
-        if (ext.equals("pdf") || mime.contains("pdf")) {
-            return "docs";
+        String ext = extractExtension(fileName).toLowerCase();
+        if (ext.equals("pdf")) {
+            return "pdf";
         }
-        if (ext.equals("docx") || ext.equals("doc") || ext.equals("txt") || ext.equals("rtf")
-                || mime.contains("word") || mime.contains("document") || mime.contains("text/plain")) {
-            return "docs";
+        if (ext.equals("docx") || ext.equals("doc")) {
+            return "word";
         }
-        if (ext.equals("xlsx") || ext.equals("xls") || ext.equals("csv")
-                || mime.contains("sheet") || mime.contains("excel") || mime.contains("csv")) {
-            return "sheets";
+        if (ext.equals("md")) {
+            return "md";
         }
-        if (ext.equals("mp4") || ext.equals("mov") || ext.equals("avi") || ext.equals("mkv") || ext.equals("webm")
-                || ext.equals("mp3") || ext.equals("wav") || mime.startsWith("video/") || mime.startsWith("audio/")) {
-            return "media";
+        if (ext.equals("txt")) {
+            return "txt";
         }
-        if (ext.equals("png") || ext.equals("jpg") || ext.equals("jpeg") || ext.equals("gif")
-                || ext.equals("webp") || ext.equals("svg") || mime.startsWith("image/")) {
-            return "images";
-        }
-        if (ext.equals("js") || ext.equals("jsx") || ext.equals("ts") || ext.equals("tsx")
-                || ext.equals("py") || ext.equals("java") || ext.equals("html") || ext.equals("css")
-                || ext.equals("json") || ext.equals("yaml") || ext.equals("yml") || ext.equals("sql")
-                || ext.equals("sh") || ext.equals("cpp") || ext.equals("c")) {
-            return "code";
-        }
-        return "docs";
+        return "pdf";
     }
 
     private String extractExtension(String fileName) {
