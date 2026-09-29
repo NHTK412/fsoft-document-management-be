@@ -83,10 +83,10 @@ Trước khi chỉnh sửa hoặc viết mới các endpoint nghiệp vụ, cầ
 
 | TT | Endpoint | Method | Trạng thái BE | Phân loại | Chi tiết cần chỉnh sửa / thêm mới |
 | :---: | :--- | :---: | :---: | :---: | :--- |
-| 15 | `/api/v1/projects/{projectId}/chat/sessions` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy danh sách phiên chat trong dự án theo người dùng: `[{ id, title, updatedAt, messageCount }]`. |
-| 16 | `/api/v1/projects/{projectId}/chat/sessions` | `POST` | Chưa có | 🔴 **Thêm mới** | • Tạo phiên chat mới với body `{ "initialQuery": "..." }`.<br>• Tự sinh tiêu đề phiên chat từ câu hỏi ban đầu, trả về status `201 Created`. |
-| 17 | `/api/v1/projects/{projectId}/chat/sessions/{sessionId}/messages` | `GET` | Chưa có | 🔴 **Thêm mới** | • Lấy toàn bộ lịch sử tin nhắn trong phiên chat (bao gồm tin user và câu trả lời AI kèm citations). |
-| 18 | `/api/v1/projects/{projectId}/chat/sessions/{sessionId}/messages` | `POST` | Chưa có | 🔴 **Thêm mới** | • Gửi câu hỏi vào phiên chat: body `{ "message": "...", "selectedDocumentIds": [1, 2] }`.<br>• Tích hợp `AiIntegrationService` / RAG Service để phản hồi kèm nguồn trích dẫn (`citation`: fileName, documentId, page, confidence, snippet).<br>• Hỗ trợ Response JSON hoặc SSE Stream (`text/event-stream`). |
+| 15 | `/api/v1/projects/{projectId}/chat/sessions` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Lấy danh sách phiên chat trong dự án theo người dùng: `[{ id, title, updatedAt, messageCount }]` với `updatedAt` chuẩn ISO-8601 UTC. |
+| 16 | `/api/v1/projects/{projectId}/chat/sessions` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Tạo phiên chat mới với body `{ "initialQuery": "..." }`. Tự sinh tiêu đề từ câu hỏi ban đầu, trả về status `201 Created`. |
+| 17 | `/api/v1/projects/{projectId}/chat/sessions/{sessionId}/messages` | `GET` | Đã xong | 🟢 **Đạt chuẩn** | • Lấy toàn bộ lịch sử tin nhắn trong phiên chat (tin nhắn người dùng và câu trả lời AI kèm `intro`, `steps`, `citation`: fileName, documentId, page, confidence, snippet). |
+| 18 | `/api/v1/projects/{projectId}/chat/sessions/{sessionId}/messages` | `POST` | Đã xong | 🟢 **Đạt chuẩn** | • Gửi câu hỏi vào phiên chat: body `{ "message": "...", "selectedDocumentIds": [1, 2] }`. Tích hợp `AiIntegrationService` sinh phản hồi thông minh kèm nguồn trích dẫn từ tài liệu dự án (bỏ qua gọi Python service). |
 
 ---
 

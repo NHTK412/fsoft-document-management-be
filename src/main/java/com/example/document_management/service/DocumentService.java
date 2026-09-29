@@ -275,6 +275,11 @@ public class DocumentService {
             log.warn("Không thể lưu hoạt động tải lên tài liệu: {}", e.getMessage());
         }
 
+        // GỬI LÊN PYTHON SERVICE
+
+
+        
+
         return DocumentUploadResponse.builder()
                 .id(saved.getId())
                 .name(saved.getFileName())

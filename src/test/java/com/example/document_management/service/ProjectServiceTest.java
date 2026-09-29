@@ -51,6 +51,9 @@ class ProjectServiceTest {
     @Mock
     private StorageService storageService;
 
+    @Mock
+    private ChatSessionRepository chatSessionRepository;
+
     @InjectMocks
     private ProjectService projectService;
 
@@ -232,6 +235,7 @@ class ProjectServiceTest {
         verify(documentRepository, times(1)).deleteByProjectId(100L);
         verify(projectInviteRepository, times(1)).deleteByProjectId(100L);
         verify(projectActivityRepository, times(1)).deleteByProjectId(100L);
+        verify(chatSessionRepository, times(1)).deleteByProjectId(100L);
         verify(projectRepository, times(1)).delete(project);
     }
 

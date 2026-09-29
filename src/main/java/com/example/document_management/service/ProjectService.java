@@ -54,6 +54,7 @@ public class ProjectService {
     private final ProjectInviteRepository projectInviteRepository;
     private final ProjectActivityRepository projectActivityRepository;
     private final StorageService storageService;
+    private final com.example.document_management.repository.ChatSessionRepository chatSessionRepository;
 
     private static final String[][] PALETTES = {
         {"#EEF2FF", "#4F46E5"}, // Indigo
@@ -456,6 +457,7 @@ public class ProjectService {
         documentRepository.deleteByProjectId(projectId);
         projectInviteRepository.deleteByProjectId(projectId);
         projectActivityRepository.deleteByProjectId(projectId);
+        chatSessionRepository.deleteByProjectId(projectId);
         projectRepository.delete(project);
     }
 
