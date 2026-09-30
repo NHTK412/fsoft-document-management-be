@@ -99,6 +99,37 @@ public class ProjectController {
         return ResponseEntity.ok(ApiResponse.success(200, response, "Cài đặt dự án đã được lưu thành công!"));
     }
 
+    @PostMapping(value = "/{projectId}/logo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải lên logo dự án", description = "Tải lên hình ảnh đại diện hoặc logo mới cho dự án")
+    public ResponseEntity<ApiResponse<ProjectSettingsResponse>> uploadLogo(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        ProjectSettingsResponse response = projectService.uploadLogo(projectId, userDetails.getUsername(), file);
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Cập nhật logo dự án thành công!"));
+    }
+
+    @DeleteMapping("/{projectId}/logo")
+    @Operation(summary = "Xóa logo dự án", description = "Xóa logo dự án và quay về biểu tượng mặc định")
+    public ResponseEntity<ApiResponse<ProjectSettingsResponse>> removeLogo(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        ProjectSettingsResponse response = projectService.removeLogo(projectId, userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, response, "Đã gỡ logo dự án, sử dụng biểu tượng mặc định!"));
+    }
+
+    @GetMapping("/{projectId}/logo")
+    @Operation(summary = "Lấy hình ảnh logo dự án", description = "Truy xuất trực tiếp tệp logo của dự án")
+    public ResponseEntity<org.springframework.core.io.Resource> getLogo(
+            @Parameter(description = "ID của dự án") @PathVariable Long projectId) {
+        java.io.InputStream stream = projectService.getLogoStream(projectId);
+        String contentType = projectService.getLogoContentType(projectId);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                .body(new org.springframework.core.io.InputStreamResource(stream));
+    }
+
     @PostMapping("/{projectId}/transfer-ownership")
     @Operation(summary = "Chuyển nhượng quyền chủ sở hữu dự án", description = "Chuyển giao quyền Project Owner sang cho email thành viên khác. Chỉ Owner hiện tại mới có quyền gọi.")
     public ResponseEntity<ApiResponse<Void>> transferOwnership(

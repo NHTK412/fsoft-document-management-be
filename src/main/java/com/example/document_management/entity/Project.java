@@ -47,6 +47,16 @@ public class Project {
 
     private String logoUrl;
 
+    public String getLogoDisplayUrl() {
+        if (logoUrl == null || logoUrl.isBlank()) {
+            return null;
+        }
+        if (logoUrl.startsWith("http://") || logoUrl.startsWith("https://") || logoUrl.startsWith("/api/")) {
+            return logoUrl;
+        }
+        return "/api/v1/projects/" + id + "/logo";
+    }
+
     @Builder.Default
     private Long storageLimitBytes = 10737418240L;
 

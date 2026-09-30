@@ -54,6 +54,35 @@ public class UserController {
         return ResponseEntity.ok(ApiResponse.success(200, updatedProfile, "Hồ sơ cá nhân đã được cập nhật thành công"));
     }
 
+    @PostMapping(value = "/me/avatar", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải lên ảnh đại diện", description = "Tải lên ảnh đại diện mới cho tài khoản hiện tại")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> uploadAvatar(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        UserProfileResponse updatedProfile = userService.uploadAvatar(userDetails.getUsername(), file);
+        return ResponseEntity.ok(ApiResponse.success(200, updatedProfile, "Cập nhật ảnh đại diện thành công!"));
+    }
+
+    @DeleteMapping("/me/avatar")
+    @Operation(summary = "Xóa ảnh đại diện", description = "Xóa ảnh đại diện và quay về ảnh mặc định")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> removeAvatar(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UserProfileResponse updatedProfile = userService.removeAvatar(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, updatedProfile, "Đã gỡ ảnh đại diện, sử dụng ảnh mặc định!"));
+    }
+
+    @GetMapping("/{userId}/avatar")
+    @Operation(summary = "Lấy hình ảnh đại diện", description = "Truy xuất trực tiếp tệp ảnh đại diện của người dùng")
+    public ResponseEntity<org.springframework.core.io.Resource> getAvatar(
+            @PathVariable Long userId) {
+        java.io.InputStream stream = userService.getAvatarStream(userId);
+        String contentType = userService.getAvatarContentType(userId);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                .body(new org.springframework.core.io.InputStreamResource(stream));
+    }
+
     @PostMapping("/me/change-password")
     @Operation(summary = "Đổi mật khẩu tài khoản", description = "Thay đổi mật khẩu đăng nhập của người dùng hiện tại")
     public ResponseEntity<ApiResponse<Void>> changePassword(

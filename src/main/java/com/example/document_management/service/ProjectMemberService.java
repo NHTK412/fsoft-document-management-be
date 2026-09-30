@@ -78,6 +78,7 @@ public class ProjectMemberService {
                     .role(formatRole(member.getRole()))
                     .avatarBg(avatarBg)
                     .initial(initial)
+                    .avatarUrl(u != null ? u.getAvatarDisplayUrl() : null)
                     .joinedDate(joinedDateStr)
                     .joinedAt(joined)
                     .contributions(contributions)
