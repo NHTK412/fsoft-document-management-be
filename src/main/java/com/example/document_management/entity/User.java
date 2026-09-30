@@ -42,6 +42,16 @@ public class User {
 
     private String avatarUrl;
 
+    public String getAvatarDisplayUrl() {
+        if (avatarUrl == null || avatarUrl.isBlank()) {
+            return null;
+        }
+        if (avatarUrl.startsWith("http://") || avatarUrl.startsWith("https://") || avatarUrl.startsWith("/api/")) {
+            return avatarUrl;
+        }
+        return "/api/v1/users/" + id + "/avatar";
+    }
+
     @Builder.Default
     private java.time.Instant createdAt = java.time.Instant.now();
 

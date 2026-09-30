@@ -8,7 +8,6 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
 import com.example.document_management.dto.request.ChangePasswordRequest;
-import com.example.document_management.dto.request.UpdateProfileRequest;
 import com.example.document_management.dto.request.UpdateUserProfileRequest;
 import com.example.document_management.dto.response.ApiResponse;
 import com.example.document_management.dto.response.UserProfileResponse;
@@ -28,27 +27,11 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "2. User Profile", description = "Quản lý thông tin tài khoản cá nhân của người dùng")
+@Tag(name = "User Profile", description = "Quản lý thông tin tài khoản cá nhân, đổi mật khẩu và quản lý phiên đăng nhập")
 public class UserController {
 
     private final AuthService authService;
     private final UserService userService;
-
-    @GetMapping("/me")
-    @Operation(summary = "Lấy thông tin cá nhân cơ bản", description = "Lấy thông tin chi tiết (họ tên, email, vai trò, trạng thái) của người dùng đang đăng nhập")
-    public ResponseEntity<ApiResponse<UserResponse>> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
-        UserResponse user = authService.getCurrentUserProfile(userDetails.getUsername());
-        return ResponseEntity.ok(ApiResponse.success(200, user, "Lấy thông tin thành công!"));
-    }
-
-    @PutMapping("/me")
-    @Operation(summary = "Cập nhật thông tin cá nhân cơ bản", description = "Cập nhật họ tên hiển thị hoặc thay đổi mật khẩu của người dùng hiện tại")
-    public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
-            @AuthenticationPrincipal UserDetails userDetails,
-            @Valid @RequestBody UpdateProfileRequest request) {
-        UserResponse user = authService.updateProfile(userDetails.getUsername(), request);
-        return ResponseEntity.ok(ApiResponse.success(200, user, "Cập nhật thông tin thành công!"));
-    }
 
     // -------------------------------------------------------------
     // USER PROFILE ENDPOINTS (Screen 3.8: UserProfile.jsx)
@@ -69,6 +52,35 @@ public class UserController {
             @Valid @RequestBody UpdateUserProfileRequest request) {
         UserProfileResponse updatedProfile = userService.updateUserProfile(userDetails.getUsername(), request);
         return ResponseEntity.ok(ApiResponse.success(200, updatedProfile, "Hồ sơ cá nhân đã được cập nhật thành công"));
+    }
+
+    @PostMapping(value = "/me/avatar", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Tải lên ảnh đại diện", description = "Tải lên ảnh đại diện mới cho tài khoản hiện tại")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> uploadAvatar(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        UserProfileResponse updatedProfile = userService.uploadAvatar(userDetails.getUsername(), file);
+        return ResponseEntity.ok(ApiResponse.success(200, updatedProfile, "Cập nhật ảnh đại diện thành công!"));
+    }
+
+    @DeleteMapping("/me/avatar")
+    @Operation(summary = "Xóa ảnh đại diện", description = "Xóa ảnh đại diện và quay về ảnh mặc định")
+    public ResponseEntity<ApiResponse<UserProfileResponse>> removeAvatar(
+            @AuthenticationPrincipal UserDetails userDetails) {
+        UserProfileResponse updatedProfile = userService.removeAvatar(userDetails.getUsername());
+        return ResponseEntity.ok(ApiResponse.success(200, updatedProfile, "Đã gỡ ảnh đại diện, sử dụng ảnh mặc định!"));
+    }
+
+    @GetMapping("/{userId}/avatar")
+    @Operation(summary = "Lấy hình ảnh đại diện", description = "Truy xuất trực tiếp tệp ảnh đại diện của người dùng")
+    public ResponseEntity<org.springframework.core.io.Resource> getAvatar(
+            @PathVariable Long userId) {
+        java.io.InputStream stream = userService.getAvatarStream(userId);
+        String contentType = userService.getAvatarContentType(userId);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "public, max-age=86400")
+                .contentType(org.springframework.http.MediaType.parseMediaType(contentType))
+                .body(new org.springframework.core.io.InputStreamResource(stream));
     }
 
     @PostMapping("/me/change-password")

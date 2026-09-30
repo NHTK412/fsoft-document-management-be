@@ -55,7 +55,24 @@ public class DocumentService {
             "#4F46E5", "#0284C7", "#9333EA", "#D97706", "#DB2777", "#059669", "#DC2626", "#2563EB"
     };
 
-    public static final Set<String> ALLOWED_SYSTEM_EXTENSIONS = Set.of("pdf", "docx", "doc", "md", "txt");
+    public static final Set<String> RAG_EXTRACTABLE_EXTENSIONS = Set.of(
+            "pdf", "docx", "doc", "md", "txt"
+    );
+
+    public static final Set<String> ALLOWED_SYSTEM_EXTENSIONS = Set.of(
+            // Documents
+            "pdf", "docx", "doc", "md", "txt", "rtf", "odt",
+            // Sheets & Data
+            "xlsx", "xls", "csv", "json", "xml",
+            // Presentations
+            "pptx", "ppt",
+            // Images
+            "png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "ico", "tiff",
+            // Audio & Video
+            "mp4", "mkv", "avi", "mov", "webm", "mp3", "wav", "ogg", "m4a",
+            // Archives
+            "zip", "rar", "7z", "tar", "gz"
+    );
 
     @Getter
     @AllArgsConstructor
@@ -77,6 +94,13 @@ public class DocumentService {
     @Transactional(readOnly = true)
     public ProjectDocumentsDataAndMeta getDocumentsExplorer(
             Long projectId, String search, String category, int page, int limit,
+            String sortBy, String sortOrder, String email) {
+        return getDocumentsExplorer(projectId, search, category, null, page, limit, sortBy, sortOrder, email);
+    }
+
+    @Transactional(readOnly = true)
+    public ProjectDocumentsDataAndMeta getDocumentsExplorer(
+            Long projectId, String search, String category, Boolean isAiIndexed, int page, int limit,
             String sortBy, String sortOrder, String email) {
 
         Project project = projectRepository.findById(projectId)
@@ -120,7 +144,7 @@ public class DocumentService {
                 .counts(counts)
                 .build();
 
-        // 2. Lọc và phân trang theo search, category, sort
+        // 2. Lọc và phân trang theo search, category, isAiIndexed, sort
         Specification<DocumentMetadata> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(cb.equal(root.get("projectId"), projectId));
@@ -128,6 +152,10 @@ public class DocumentService {
             if (search != null && !search.trim().isEmpty()) {
                 String searchPattern = "%" + search.trim().toLowerCase() + "%";
                 predicates.add(cb.like(cb.lower(root.get("fileName")), searchPattern));
+            }
+
+            if (isAiIndexed != null) {
+                predicates.add(cb.equal(root.get("isAiIndexed"), isAiIndexed));
             }
 
             if (category != null && !category.trim().isEmpty() && !category.trim().equalsIgnoreCase("all")) {
@@ -205,6 +233,7 @@ public class DocumentService {
                     .updatedAt(doc.getUpdatedAt() != null ? doc.getUpdatedAt() : doc.getCreatedAt())
                     .createdAt(doc.getCreatedAt())
                     .minioKey(doc.getS3Key())
+                    .isAiIndexed(Boolean.TRUE.equals(doc.getIsAiIndexed()))
                     .build());
         }
 
@@ -228,7 +257,7 @@ public class DocumentService {
      */
     @Transactional
     public DocumentUploadResponse uploadDocumentExplorer(Long projectId, MultipartFile file, String category,
-            String email) {
+            Boolean enableRag, String email) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("Vui lòng chọn tệp để tải lên!");
         }
@@ -255,18 +284,21 @@ public class DocumentService {
         originalFilename = Paths.get(originalFilename).getFileName().toString();
         String ext = extractExtension(originalFilename).toLowerCase();
 
-        // 1. Kiểm tra định dạng hệ thống cho phép (chỉ pdf, docx, doc, md, txt)
+        // 1. Kiểm tra định dạng hệ thống cho phép
         if (!ALLOWED_SYSTEM_EXTENSIONS.contains(ext)) {
             throw new IllegalArgumentException(
-                    "Định dạng tệp '." + ext + "' không được hỗ trợ! Hệ thống chỉ cho phép tải lên các tệp: PDF (.pdf), Word (.docx, .doc), Markdown (.md) và Text (.txt)!");
+                    "Định dạng tệp '." + ext + "' không được hỗ trợ trên hệ thống lưu trữ!");
         }
 
-        // 2. Validate allowedFormats của dự án nếu có
+        // 2. Validate allowedFormats của dự án nếu có cấu hình riêng
         if (project.getAllowedFormats() != null && !project.getAllowedFormats().isBlank()) {
-            String allowed = project.getAllowedFormats().toLowerCase();
-            if (!allowed.contains(ext)) {
+            Set<String> projectAllowed = Arrays.stream(project.getAllowedFormats().toLowerCase().split(","))
+                    .map(String::trim)
+                    .filter(s -> !s.isEmpty())
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!projectAllowed.isEmpty() && !projectAllowed.contains(ext)) {
                 throw new IllegalArgumentException(
-                        "Định dạng tệp '." + ext + "' không được hỗ trợ trong dự án này (chỉ cho phép: "
+                        "Định dạng tệp '." + ext + "' không nằm trong danh sách định dạng được phép của dự án ("
                                 + project.getAllowedFormats() + ")!");
             }
         }
@@ -279,6 +311,10 @@ public class DocumentService {
         String s3Key = "projects/" + projectId + "/" + UUID.randomUUID() + "_" + originalFilename;
         storageService.uploadFile(file, s3Key);
 
+        // Chỉ tệp pdf, docx, doc, md, txt mới hợp lệ để trích xuất & nhúng vector RAG
+        boolean isRagEligible = RAG_EXTRACTABLE_EXTENSIONS.contains(ext);
+        boolean shouldIndexRag = isRagEligible && (enableRag == null || Boolean.TRUE.equals(enableRag));
+
         DocumentMetadata metadata = DocumentMetadata.builder()
                 .fileName(originalFilename)
                 .s3Key(s3Key)
@@ -287,6 +323,7 @@ public class DocumentService {
                 .projectId(projectId)
                 .uploaderId(user.getId())
                 .category(resolvedCategory)
+                .isAiIndexed(shouldIndexRag)
                 .createdAt(Instant.now())
                 .updatedAt(Instant.now())
                 .build();
@@ -307,27 +344,36 @@ public class DocumentService {
             log.warn("Không thể lưu hoạt động tải lên tài liệu: {}", e.getMessage());
         }
 
-        // GỬI LÊN PYTHON SERVICE
+        // GỬI LÊN PYTHON SERVICE NẾU ĐƯỢC CHỌN VÀ ĐỦ ĐIỀU KIỆN (PDF, WORD, MD, TXT)
+        if (shouldIndexRag) {
+            try {
+                Map<String, Object> request = new HashMap<>();
+                request.put("project_id", projectId.toString());
+                request.put("object_name", s3Key);
+                request.put("bucket_name", storageService.getBucketName() != null ? storageService.getBucketName() : "document-management");
 
-        Map<String, Object> request = new HashMap<>();
+                Map<String, Object> response = restClient.post()
+                        .uri("/api/v1/documents/upload")
+                        .accept(MediaType.ALL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body(request)
+                        .retrieve()
+                        .body(Map.class);
 
-        request.put("project_id", projectId.toString());
-        request.put("object_name", s3Key);
-        request.put("bucket_name", "document-management");
-
-        Map<String, Object> response = restClient.post()
-                .uri("/api/v1/documents/upload")
-                .accept(MediaType.ALL)
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(request)
-                .retrieve()
-                .body(Map.class);
-
-        if (response == null || !"success".equalsIgnoreCase(String.valueOf(response.get("status")))) {
-            String errorMsg = (response != null && response.get("message") != null) 
-                    ? String.valueOf(response.get("message")) 
-                    : "Lỗi khi gửi yêu cầu sang python service";
-            throw new RuntimeException(errorMsg);
+                if (response == null || !"success".equalsIgnoreCase(String.valueOf(response.get("status")))) {
+                    String errorMsg = (response != null && response.get("message") != null) 
+                            ? String.valueOf(response.get("message")) 
+                            : "Lỗi khi gửi yêu cầu sang python service";
+                    log.warn("Python service báo lỗi khi nạp vector cho {}: {}", s3Key, errorMsg);
+                    saved.setIsAiIndexed(false);
+                    documentRepository.save(saved);
+                }
+            } catch (Exception e) {
+                log.error("Lỗi khi kết nối Python RAG service để nhúng vector {}: {}", s3Key, e.getMessage());
+                saved.setIsAiIndexed(false);
+                documentRepository.save(saved);
+                throw new RuntimeException("Tệp đã được lưu trên MinIO nhưng lập chỉ mục AI thất bại: " + e.getMessage(), e);
+            }
         }
 
         return DocumentUploadResponse.builder()
@@ -336,7 +382,13 @@ public class DocumentService {
                 .size(formatBytes(saved.getFileSize()))
                 .format(ext.toUpperCase())
                 .minioUrl(storageService.getDirectFileUrl(s3Key))
+                .isAiIndexed(saved.getIsAiIndexed())
                 .build();
+    }
+
+    public DocumentUploadResponse uploadDocumentExplorer(Long projectId, MultipartFile file, String category,
+            String email) {
+        return uploadDocumentExplorer(projectId, file, category, true, email);
     }
 
     /**
@@ -612,7 +664,19 @@ public class DocumentService {
         if (ext.equals("txt")) {
             return "txt";
         }
-        return "pdf";
+        if (Set.of("png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "ico", "tiff").contains(ext)) {
+            return "images";
+        }
+        if (Set.of("mp4", "mkv", "avi", "mov", "webm", "mp3", "wav", "ogg", "m4a").contains(ext)) {
+            return "media";
+        }
+        if (Set.of("xlsx", "xls", "csv", "json", "xml").contains(ext)) {
+            return "sheets";
+        }
+        if (Set.of("zip", "rar", "7z", "tar", "gz").contains(ext)) {
+            return "archives";
+        }
+        return "docs";
     }
 
     private String extractExtension(String fileName) {

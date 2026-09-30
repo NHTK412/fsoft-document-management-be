@@ -118,7 +118,7 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .role(user.getRole())
                 .isActive(user.isActive())
-                .avatarUrl(user.getAvatarUrl())
+                .avatarUrl(user.getAvatarDisplayUrl())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

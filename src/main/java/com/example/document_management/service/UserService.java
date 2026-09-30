@@ -24,8 +24,12 @@ import com.example.document_management.repository.UserRepository;
 import com.example.document_management.repository.UserSessionRepository;
 
 import jakarta.servlet.http.HttpServletRequest;
+import java.io.InputStream;
+import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -33,6 +37,7 @@ public class UserService {
     private final UserRepository userRepository;
     private final UserSessionRepository userSessionRepository;
     private final PasswordEncoder passwordEncoder;
+    private final StorageService storageService;
 
     public Page<UserResponse> getAllUsers(Pageable pageable) {
         Page<User> users = userRepository.findAll(pageable);
@@ -185,6 +190,91 @@ public class UserService {
         userSessionRepository.deleteByUserIdAndIdNot(user.getId(), current.getId());
     }
 
+    @Transactional
+    public UserProfileResponse uploadAvatar(String email, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn tệp hình ảnh hợp lệ!");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Chỉ chấp nhận các tệp hình ảnh (JPEG, PNG, WebP, GIF, SVG)!");
+        }
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        if (user.getAvatarUrl() != null && user.getAvatarUrl().startsWith("avatars/")) {
+            try {
+                storageService.deleteFile(user.getAvatarUrl());
+            } catch (Exception e) {
+                log.warn("Không thể xóa ảnh đại diện cũ {}: {}", user.getAvatarUrl(), e.getMessage());
+            }
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = "jpg";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+        }
+
+        String s3Key = "avatars/user_" + user.getId() + "_" + System.currentTimeMillis() + "." + extension;
+        storageService.uploadFile(file, s3Key);
+
+        user.setAvatarUrl(s3Key);
+        userRepository.save(user);
+
+        return mapToUserProfileResponse(user);
+    }
+
+    @Transactional
+    public UserProfileResponse removeAvatar(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        if (user.getAvatarUrl() != null && user.getAvatarUrl().startsWith("avatars/")) {
+            try {
+                storageService.deleteFile(user.getAvatarUrl());
+            } catch (Exception e) {
+                log.warn("Không thể xóa ảnh đại diện {}: {}", user.getAvatarUrl(), e.getMessage());
+            }
+        }
+
+        user.setAvatarUrl(null);
+        userRepository.save(user);
+
+        return mapToUserProfileResponse(user);
+    }
+
+    @Transactional(readOnly = true)
+    public InputStream getAvatarStream(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với id: " + userId));
+
+        if (user.getAvatarUrl() == null || user.getAvatarUrl().isBlank()) {
+            throw new ResourceNotFoundException("Người dùng chưa có ảnh đại diện.");
+        }
+
+        return storageService.getFile(user.getAvatarUrl());
+    }
+
+    @Transactional(readOnly = true)
+    public String getAvatarContentType(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng với id: " + userId));
+
+        if (user.getAvatarUrl() == null || user.getAvatarUrl().isBlank()) {
+            return "image/jpeg";
+        }
+
+        String lower = user.getAvatarUrl().toLowerCase();
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        return "image/jpeg";
+    }
+
     // -------------------------------------------------------------
     // HELPER METHODS
     // -------------------------------------------------------------
@@ -201,7 +291,7 @@ public class UserService {
                 .phone(user.getPhone())
                 .role(roleDisplay)
                 .initials(initials)
-                .avatarUrl(user.getAvatarUrl())
+                .avatarUrl(user.getAvatarDisplayUrl())
                 .build();
     }
 
@@ -287,7 +377,7 @@ public class UserService {
                 .fullName(user.getFullName())
                 .role(user.getRole())
                 .isActive(user.isActive())
-                .avatarUrl(user.getAvatarUrl())
+                .avatarUrl(user.getAvatarDisplayUrl())
                 .createdAt(user.getCreatedAt())
                 .build();
     }

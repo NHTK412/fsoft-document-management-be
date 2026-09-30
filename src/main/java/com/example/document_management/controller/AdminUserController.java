@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "3. Admin User Management", description = "Quản trị tài khoản và phân quyền người dùng trong hệ thống (Dành riêng cho Admin)")
+@Tag(name = "Admin Management", description = "Quản trị hệ thống, quản lý người dùng và giám sát toàn bộ dự án (Dành riêng cho Quản trị viên)")
 public class AdminUserController {
 
     private final UserService userService;

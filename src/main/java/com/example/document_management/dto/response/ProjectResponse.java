@@ -20,6 +20,8 @@ public class ProjectResponse {
 
     private String name;
 
+    private String logoUrl;
+
     @JsonProperty("title")
     public String getTitle() {
         return name;

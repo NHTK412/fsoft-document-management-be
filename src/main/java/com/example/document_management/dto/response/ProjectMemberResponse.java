@@ -20,6 +20,7 @@ public class ProjectMemberResponse {
     private String role;
     private String avatarBg;
     private String initial;
+    private String avatarUrl;
     private String joinedDate;
 
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")

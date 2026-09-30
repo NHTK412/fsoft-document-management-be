@@ -25,7 +25,7 @@ import java.util.List;
 @RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "6. AI Assistant", description = "Tương tác và hỏi đáp thông minh với tài liệu bằng AI")
+@Tag(name = "AI Assistant", description = "Trợ lý AI hỏi đáp thông minh và phân tích tài liệu theo ngữ cảnh (RAG Chat)")
 public class AiChatController {
 
     private final AiChatService aiChatService;

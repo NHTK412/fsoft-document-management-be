@@ -38,7 +38,8 @@ import com.example.document_management.repository.ProjectRepository;
 import com.example.document_management.entity.ProjectActivity;
 import com.example.document_management.repository.ProjectActivityRepository;
 import com.example.document_management.repository.UserRepository;
-
+import org.springframework.web.multipart.MultipartFile;
+import java.io.InputStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -276,7 +277,7 @@ public class ProjectService {
         return ProjectSettingsResponse.builder()
                 .projectName(project.getName())
                 .projectDesc(project.getDescription())
-                .logoUrl(project.getLogoUrl())
+                .logoUrl(project.getLogoDisplayUrl())
                 .minioBucket(storageService.getBucketName())
                 .storageUsedBytes(storageUsedBytes != null ? storageUsedBytes : 0L)
                 .storageLimitBytes(project.getStorageLimitBytes() != null ? project.getStorageLimitBytes() : 10737418240L)
@@ -284,6 +285,118 @@ public class ProjectService {
                 .allowedFormats(allowedFormats)
                 .aiPersona(aiPersona)
                 .build();
+    }
+
+    @Transactional
+    public ProjectSettingsResponse uploadLogo(Long projectId, String email, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("Vui lòng chọn tệp hình ảnh hợp lệ!");
+        }
+
+        String contentType = file.getContentType();
+        if (contentType == null || !contentType.startsWith("image/")) {
+            throw new IllegalArgumentException("Chỉ chấp nhận các tệp hình ảnh (JPEG, PNG, WebP, GIF, SVG)!");
+        }
+
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserEmail(projectId, email);
+        boolean isOwnerOrAdmin = memberOpt.isPresent() &&
+                (memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_OWNER || memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_ADMIN);
+        boolean isSystemAdmin = user.getRole() == UserRoleEnum.ROLE_ADMIN;
+
+        if (!isOwnerOrAdmin && !isSystemAdmin) {
+            throw new AccessDeniedException("Chỉ chủ dự án (Project Owner) hoặc Quản trị viên (Admin) mới có quyền thay đổi logo dự án!");
+        }
+
+        if (project.getLogoUrl() != null && project.getLogoUrl().startsWith("projects/")) {
+            try {
+                storageService.deleteFile(project.getLogoUrl());
+            } catch (Exception e) {
+                log.warn("Không thể xóa logo dự án cũ {}: {}", project.getLogoUrl(), e.getMessage());
+            }
+        }
+
+        String originalFilename = file.getOriginalFilename();
+        String extension = "png";
+        if (originalFilename != null && originalFilename.contains(".")) {
+            extension = originalFilename.substring(originalFilename.lastIndexOf(".") + 1).toLowerCase();
+        }
+
+        String s3Key = "projects/" + projectId + "/logo_" + System.currentTimeMillis() + "." + extension;
+        storageService.uploadFile(file, s3Key);
+
+        project.setLogoUrl(s3Key);
+        project.setUpdatedAt(Instant.now());
+        projectRepository.save(project);
+
+        return getProjectSettings(projectId, email);
+    }
+
+    @Transactional
+    public ProjectSettingsResponse removeLogo(Long projectId, String email) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy người dùng"));
+
+        Optional<ProjectMember> memberOpt = projectMemberRepository.findByProjectIdAndUserEmail(projectId, email);
+        boolean isOwnerOrAdmin = memberOpt.isPresent() &&
+                (memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_OWNER || memberOpt.get().getRole() == ProjectMemberRoleEnum.ROLE_ADMIN);
+        boolean isSystemAdmin = user.getRole() == UserRoleEnum.ROLE_ADMIN;
+
+        if (!isOwnerOrAdmin && !isSystemAdmin) {
+            throw new AccessDeniedException("Chỉ chủ dự án (Project Owner) hoặc Quản trị viên (Admin) mới có quyền xóa logo dự án!");
+        }
+
+        if (project.getLogoUrl() != null && project.getLogoUrl().startsWith("projects/")) {
+            try {
+                storageService.deleteFile(project.getLogoUrl());
+            } catch (Exception e) {
+                log.warn("Không thể xóa logo dự án {}: {}", project.getLogoUrl(), e.getMessage());
+            }
+        }
+
+        project.setLogoUrl(null);
+        project.setUpdatedAt(Instant.now());
+        projectRepository.save(project);
+
+        return getProjectSettings(projectId, email);
+    }
+
+    @Transactional(readOnly = true)
+    public InputStream getLogoStream(Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        if (project.getLogoUrl() == null || project.getLogoUrl().isBlank()) {
+            throw new ResourceNotFoundException("Dự án chưa có logo.");
+        }
+
+        return storageService.getFile(project.getLogoUrl());
+    }
+
+    @Transactional(readOnly = true)
+    public String getLogoContentType(Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy dự án với id: " + projectId));
+
+        if (project.getLogoUrl() == null || project.getLogoUrl().isBlank()) {
+            return "image/png";
+        }
+
+        String lower = project.getLogoUrl().toLowerCase();
+        if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) return "image/jpeg";
+        if (lower.endsWith(".png")) return "image/png";
+        if (lower.endsWith(".webp")) return "image/webp";
+        if (lower.endsWith(".gif")) return "image/gif";
+        if (lower.endsWith(".svg")) return "image/svg+xml";
+        return "image/png";
     }
 
     @Transactional
@@ -504,6 +617,7 @@ public class ProjectService {
         return ProjectResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
+                .logoUrl(project.getLogoDisplayUrl())
                 .description(project.getDescription())
                 .ownerId(project.getOwner() != null ? project.getOwner().getId() : null)
                 .ownerName(project.getOwner() != null ? project.getOwner().getFullName() : null)
