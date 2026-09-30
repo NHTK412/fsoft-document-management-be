@@ -15,4 +15,5 @@ public class DocumentUploadResponse {
     private String size;
     private String format;
     private String minioUrl;
+    private Boolean isAiIndexed;
 }

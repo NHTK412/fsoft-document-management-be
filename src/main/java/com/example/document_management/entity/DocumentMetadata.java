@@ -34,6 +34,9 @@ public class DocumentMetadata {
     private String category;
 
     @Builder.Default
+    private Boolean isAiIndexed = false;
+
+    @Builder.Default
     private Instant createdAt = Instant.now();
 
     @Builder.Default

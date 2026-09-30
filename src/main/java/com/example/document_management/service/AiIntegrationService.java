@@ -42,6 +42,7 @@ public class AiIntegrationService {
         if (selectedDocumentIds != null && !selectedDocumentIds.isEmpty()) {
             List<String> sources = documentRepository.findAllById(selectedDocumentIds).stream()
                     .filter(doc -> doc.getProjectId() != null && doc.getProjectId().equals(project.getId()))
+                    .filter(doc -> Boolean.TRUE.equals(doc.getIsAiIndexed()))
                     .map(DocumentMetadata::getS3Key)
                     .filter(s3Key -> s3Key != null && !s3Key.isBlank())
                     .collect(Collectors.toList());
