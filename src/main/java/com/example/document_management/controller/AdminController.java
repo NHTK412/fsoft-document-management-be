@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
 @PreAuthorize("hasRole('ADMIN')")
-@Tag(name = "Admin System Management", description = "Quản trị hệ thống dành riêng cho Quản trị viên")
+@Tag(name = "Admin Management", description = "Quản trị hệ thống, quản lý người dùng và giám sát toàn bộ dự án (Dành riêng cho Quản trị viên)")
 public class AdminController {
 
     private final ProjectRepository projectRepository;

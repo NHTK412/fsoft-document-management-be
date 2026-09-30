@@ -22,7 +22,7 @@ import java.util.List;
 @RequestMapping("/api/v1/projects/{projectId}")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "6. Project Members & Permissions", description = "Quản lý thành viên dự án, gửi lời mời và phân quyền vai trò")
+@Tag(name = "Project Members", description = "Quản lý danh sách thành viên dự án, gửi lời mời và phân quyền vai trò")
 public class ProjectMemberController {
 
     private final ProjectMemberService projectMemberService;

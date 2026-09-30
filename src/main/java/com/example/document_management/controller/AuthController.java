@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
-@Tag(name = "1. Authentication", description = "Các API xác thực tài khoản (Đăng ký, Đăng nhập, Làm mới Token)")
+@Tag(name = "Authentication", description = "Các API xác thực tài khoản (Đăng ký, Đăng nhập, Làm mới Token, Phiên làm việc)")
 public class AuthController {
 
     private final AuthService authService;

@@ -34,7 +34,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/v1/projects")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "4. Project Management", description = "Quản lý dự án làm việc, thông tin thành viên và quyền sở hữu dự án")
+@Tag(name = "Project Management", description = "Quản lý dự án làm việc, cấu hình cài đặt và số liệu thống kê Dashboard")
 public class ProjectController {
 
     private final ProjectService projectService;

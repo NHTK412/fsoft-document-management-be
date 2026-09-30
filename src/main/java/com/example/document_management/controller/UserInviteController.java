@@ -18,7 +18,7 @@ import java.util.List;
 @RequestMapping("/api/v1/invites")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
-@Tag(name = "7. User Invitations", description = "Quản lý lời mời tham gia dự án của người dùng hiện tại")
+@Tag(name = "User Invitations", description = "Quản lý và phản hồi lời mời tham gia dự án của người dùng hiện tại")
 public class UserInviteController {
 
     private final ProjectMemberService projectMemberService;

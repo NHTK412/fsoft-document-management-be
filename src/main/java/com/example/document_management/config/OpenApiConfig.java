@@ -28,12 +28,14 @@ public class OpenApiConfig {
                                 .email("contact@example.com"))
                         .license(new License().name("Apache 2.0").url("https://springdoc.org")))
                 .tags(List.of(
-                        new Tag().name("1. Authentication").description("Các API xác thực tài khoản (Đăng ký, Đăng nhập, Làm mới Token)"),
-                        new Tag().name("2. User Profile").description("Quản lý thông tin tài khoản cá nhân của người dùng"),
-                        new Tag().name("3. Admin User Management").description("Quản trị tài khoản và phân quyền người dùng trong hệ thống (Dành riêng cho Admin)"),
-                        new Tag().name("4. Project Management").description("Quản lý dự án làm việc, thông tin thành viên và quyền sở hữu dự án"),
-                        new Tag().name("5. Document Management").description("Quản lý và thao tác tệp tài liệu (Upload MinIO, Download, Preview trực tiếp, Tìm kiếm, Xóa)"),
-                        new Tag().name("6. AI Assistant").description("Tương tác và hỏi đáp thông minh với tài liệu bằng AI")
+                        new Tag().name("Authentication").description("Các API xác thực tài khoản (Đăng ký, Đăng nhập, Làm mới Token, Phiên làm việc)"),
+                        new Tag().name("User Profile").description("Quản lý thông tin tài khoản cá nhân, đổi mật khẩu và quản lý phiên đăng nhập"),
+                        new Tag().name("Project Management").description("Quản lý dự án làm việc, cấu hình cài đặt và số liệu thống kê Dashboard"),
+                        new Tag().name("Project Members").description("Quản lý danh sách thành viên dự án, gửi lời mời và phân quyền vai trò"),
+                        new Tag().name("User Invitations").description("Quản lý và phản hồi lời mời tham gia dự án của người dùng hiện tại"),
+                        new Tag().name("Document Management").description("Quản lý và thao tác tệp tài liệu MinIO (Upload, Download URL, Preview URL, Bulk Delete)"),
+                        new Tag().name("AI Assistant").description("Trợ lý AI hỏi đáp thông minh và phân tích tài liệu theo ngữ cảnh (RAG Chat)"),
+                        new Tag().name("Admin Management").description("Quản trị hệ thống, quản lý người dùng và giám sát toàn bộ dự án (Dành riêng cho Quản trị viên)")
                 ))
                 .components(new Components()
                         .addSecuritySchemes("bearerAuth", new SecurityScheme()
