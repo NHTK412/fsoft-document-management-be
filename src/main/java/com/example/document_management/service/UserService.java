@@ -288,6 +288,7 @@ public class UserService {
                 .role(user.getRole())
                 .isActive(user.isActive())
                 .avatarUrl(user.getAvatarUrl())
+                .createdAt(user.getCreatedAt())
                 .build();
     }
 }

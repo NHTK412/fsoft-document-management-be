@@ -14,4 +14,7 @@ public class UserResponse {
     private String avatarUrl;
     private UserRoleEnum role;
     private boolean isActive;
+
+    @com.fasterxml.jackson.annotation.JsonFormat(shape = com.fasterxml.jackson.annotation.JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", timezone = "UTC")
+    private java.time.Instant createdAt;
 }

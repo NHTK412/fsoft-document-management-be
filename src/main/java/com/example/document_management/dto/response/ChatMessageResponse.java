@@ -18,5 +18,6 @@ public class ChatMessageResponse {
     private String intro;
     private List<String> steps;
     private ChatCitationDto citation;
+    private List<ChatCitationDto> citations;
     private String createdAt;
 }

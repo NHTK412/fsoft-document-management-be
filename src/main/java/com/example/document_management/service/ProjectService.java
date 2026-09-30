@@ -76,7 +76,7 @@ public class ProjectService {
 
         String allowedFormatsStr = (projectCreateRequest.getAllowedFormats() != null && !projectCreateRequest.getAllowedFormats().isEmpty())
                 ? String.join(",", projectCreateRequest.getAllowedFormats())
-                : "pdf,docx,xlsx,pptx,md,txt,images";
+                : "pdf,docx,doc,md,txt";
 
         Project newProject = Project.builder()
                 .name(projectCreateRequest.getEffectiveName())
@@ -145,6 +145,16 @@ public class ProjectService {
             long storageUsedBytes = documentRepository.sumFileSizeByProjectId(project.getId());
 
             return mapToProjectResponse(project, currentUserRole, totalFiles, totalMembers, storageUsedBytes);
+        }).toList();
+    }
+
+    public List<ProjectResponse> getAllProjectsForAdmin() {
+        List<Project> projects = projectRepository.findAll();
+        return projects.stream().map(project -> {
+            long totalFiles = documentRepository.countByProjectId(project.getId());
+            long totalMembers = projectMemberRepository.countByProjectId(project.getId());
+            long storageUsedBytes = documentRepository.sumFileSizeByProjectId(project.getId());
+            return mapToProjectResponse(project, ProjectMemberRoleEnum.ROLE_ADMIN, totalFiles, totalMembers, storageUsedBytes);
         }).toList();
     }
 
@@ -496,6 +506,8 @@ public class ProjectService {
                 .name(project.getName())
                 .description(project.getDescription())
                 .ownerId(project.getOwner() != null ? project.getOwner().getId() : null)
+                .ownerName(project.getOwner() != null ? project.getOwner().getFullName() : null)
+                .ownerEmail(project.getOwner() != null ? project.getOwner().getEmail() : null)
                 .currentUserRole(currentUserRole)
                 .status(project.getStatus() != null ? project.getStatus() : "active")
                 .totalFiles(totalFiles)

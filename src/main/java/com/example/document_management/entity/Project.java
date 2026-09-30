@@ -37,7 +37,7 @@ public class Project {
     private String maxFileSize = "50 MB";
 
     @Builder.Default
-    private String allowedFormats = "pdf,docx,xlsx,pptx,md,txt,images";
+    private String allowedFormats = "pdf,docx,doc,md,txt";
 
     @Builder.Default
     private Double aiTemperature = 0.2;

@@ -14,6 +14,8 @@ import java.util.List;
 public interface ProjectRepository extends JpaRepository<Project, Long> {
     List<Project> findByOwnerId(Long ownerId);
 
+    long countByStatus(String status);
+
     @Query(value = "SELECT p FROM Project p LEFT JOIN FETCH p.owner " +
             "WHERE p.id IN (SELECT m.project.id FROM ProjectMember m WHERE m.user.email = :email)",
            countQuery = "SELECT COUNT(DISTINCT m.project.id) FROM ProjectMember m WHERE m.user.email = :email")

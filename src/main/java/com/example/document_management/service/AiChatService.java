@@ -138,20 +138,24 @@ public class AiChatService {
 
         Instant aiTime = Instant.now();
 
-        // 3. Chuẩn hóa trích dẫn nguồn (Citation) sang đúng format ChatCitationDto của FE
-        ChatCitationDto chatCitation = extractChatCitation(aiGen != null ? aiGen.getCitations() : null, projectId);
+        // 3. Chuẩn hóa trích dẫn nguồn (Citations) sang đúng format ChatCitationDto của FE
+        List<ChatCitationDto> chatCitations = extractChatCitations(aiGen != null ? aiGen.getCitations() : null, projectId);
         String citationJsonStr = null;
-        if (chatCitation != null) {
+        if (chatCitations != null && !chatCitations.isEmpty()) {
             try {
-                citationJsonStr = objectMapper.writeValueAsString(chatCitation);
+                citationJsonStr = objectMapper.writeValueAsString(chatCitations);
             } catch (Exception e) {
                 log.warn("Không thể serialize citationJson: {}", e.getMessage());
             }
         }
 
         String intro = null;
-        if (chatCitation != null && chatCitation.getFileName() != null) {
-            intro = "Dựa trên tài liệu " + chatCitation.getFileName() + " của dự án:";
+        if (chatCitations != null && !chatCitations.isEmpty()) {
+            if (chatCitations.size() == 1) {
+                intro = "Dựa trên tài liệu " + chatCitations.get(0).getFileName() + " của dự án:";
+            } else {
+                intro = "Dựa trên " + chatCitations.size() + " nguồn tài liệu trích dẫn của dự án:";
+            }
         }
 
         // 4. Lưu câu trả lời của AI
@@ -170,12 +174,15 @@ public class AiChatService {
         session.setUpdatedAt(aiTime);
         chatSessionRepository.save(session);
 
+        ChatCitationDto primaryCitation = (chatCitations != null && !chatCitations.isEmpty()) ? chatCitations.get(0) : null;
+
         return ChatMessageResponse.builder()
                 .id(savedAi.getId())
                 .sender("ai")
                 .intro(intro)
                 .text(aiGen != null ? aiGen.getAnswer() : "")
-                .citation(chatCitation)
+                .citation(primaryCitation)
+                .citations(chatCitations != null ? chatCitations : List.of())
                 .createdAt(DateTimeFormatter.ISO_INSTANT.format(aiTime))
                 .build();
     }
@@ -236,10 +243,23 @@ public class AiChatService {
             }
         }
 
-        ChatCitationDto citation = null;
+        ChatCitationDto primaryCitation = null;
+        List<ChatCitationDto> citationsList = new ArrayList<>();
         if (msg.getCitationJson() != null && !msg.getCitationJson().isBlank()) {
+            String trimmedJson = msg.getCitationJson().trim();
             try {
-                citation = objectMapper.readValue(msg.getCitationJson(), ChatCitationDto.class);
+                if (trimmedJson.startsWith("[")) {
+                    citationsList = objectMapper.readValue(trimmedJson, new TypeReference<List<ChatCitationDto>>() {
+                    });
+                    if (!citationsList.isEmpty()) {
+                        primaryCitation = citationsList.get(0);
+                    }
+                } else if (trimmedJson.startsWith("{")) {
+                    primaryCitation = objectMapper.readValue(trimmedJson, ChatCitationDto.class);
+                    if (primaryCitation != null) {
+                        citationsList = List.of(primaryCitation);
+                    }
+                }
             } catch (Exception e) {
                 log.warn("Không thể parse citationJson: {}", e.getMessage());
             }
@@ -251,30 +271,37 @@ public class AiChatService {
                 .text(msg.getContent())
                 .intro(msg.getIntro())
                 .steps(steps)
-                .citation(citation)
+                .citation(primaryCitation)
+                .citations(citationsList)
                 .createdAt(DateTimeFormatter.ISO_INSTANT.format(msg.getCreatedAt()))
                 .build();
     }
 
-    private ChatCitationDto extractChatCitation(List<CitationDto> citations, Long projectId) {
+    private List<ChatCitationDto> extractChatCitations(List<CitationDto> citations, Long projectId) {
         if (citations == null || citations.isEmpty()) {
-            return null;
+            return List.of();
         }
 
-        CitationDto first = citations.get(0);
-        String source = first.getSourceFile();
-        if (source == null || source.isBlank()) {
-            return null;
-        }
-
-        String cleanFileName = source;
-        if (cleanFileName.contains("/")) {
-            cleanFileName = cleanFileName.substring(cleanFileName.lastIndexOf('/') + 1);
-        }
-
-        Long documentId = null;
+        List<DocumentMetadata> docs = List.of();
         try {
-            List<DocumentMetadata> docs = documentRepository.findByProjectId(projectId);
+            docs = documentRepository.findByProjectId(projectId);
+        } catch (Exception e) {
+            log.warn("Không thể tải documents của project {}: {}", projectId, e.getMessage());
+        }
+
+        List<ChatCitationDto> result = new ArrayList<>();
+        for (CitationDto item : citations) {
+            String source = item.getSourceFile();
+            if (source == null || source.isBlank()) {
+                continue;
+            }
+
+            String cleanFileName = source;
+            if (cleanFileName.contains("/")) {
+                cleanFileName = cleanFileName.substring(cleanFileName.lastIndexOf('/') + 1);
+            }
+
+            Long documentId = null;
             for (DocumentMetadata doc : docs) {
                 if (doc.getFileName().equalsIgnoreCase(cleanFileName)
                         || (doc.getS3Key() != null && doc.getS3Key().equalsIgnoreCase(source))) {
@@ -283,28 +310,28 @@ public class AiChatService {
                     break;
                 }
             }
-        } catch (Exception e) {
-            log.warn("Không thể tìm documentId cho citation: {}", e.getMessage());
-        }
 
-        Integer page = null;
-        String loc = first.getLocation();
-        if (loc != null) {
-            Matcher matcher = Pattern.compile("\\d+").matcher(loc);
-            if (matcher.find()) {
-                try {
-                    page = Integer.parseInt(matcher.group());
-                } catch (NumberFormatException ignored) {
+            Integer page = null;
+            String loc = item.getLocation();
+            if (loc != null) {
+                Matcher matcher = Pattern.compile("\\d+").matcher(loc);
+                if (matcher.find()) {
+                    try {
+                        page = Integer.parseInt(matcher.group());
+                    } catch (NumberFormatException ignored) {
+                    }
                 }
             }
+
+            result.add(ChatCitationDto.builder()
+                    .fileName(cleanFileName)
+                    .documentId(documentId)
+                    .page(page != null ? page : 1)
+                    .confidence("98.5%")
+                    .snippet(item.getQuote())
+                    .build());
         }
 
-        return ChatCitationDto.builder()
-                .fileName(cleanFileName)
-                .documentId(documentId)
-                .page(page != null ? page : 1)
-                .confidence("98.5%")
-                .snippet(first.getQuote())
-                .build();
+        return result;
     }
 }
