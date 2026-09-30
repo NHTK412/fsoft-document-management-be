@@ -73,3 +73,77 @@ docker run -d --name minio \
   -e MINIO_ROOT_PASSWORD=minioadmin \
   quay.io/minio/minio server /data \
   --console-address ":9001"
+```
+### 3. Tạo Bucket trên MinIO
+
+1. Truy cập MinIO Console tại `http://localhost:9001`.
+2. Đăng nhập bằng tài khoản:
+
+   * **Username:** `admin`
+   * **Password:** `admin123456`
+3. Chọn **Buckets** → **Create Bucket**.
+4. Đặt tên bucket là `document-management`.
+5. Nhấn **Create**.
+
+### 4. Cấu hình ứng dụng
+
+Kiểm tra file `src/main/resources/application.properties` và đảm bảo các thông số kết nối phù hợp với môi trường:
+
+```properties
+server.port=10001
+
+# PostgreSQL Database
+spring.datasource.url=jdbc:postgresql://localhost:5432/document_management_db
+spring.datasource.username=postgres
+spring.datasource.password=123456
+
+# MinIO Storage
+minio.url=http://localhost:9000
+minio.access-key=admin
+minio.secret-key=admin123456
+minio.bucket-name=document-management
+
+# Python AI Service
+ai.service.url=http://localhost:8000
+```
+
+### 5. Khởi chạy Python AI Service
+
+Backend sử dụng Python FastAPI để thực hiện việc trích xuất nội dung, tạo vector và truy xuất dữ liệu cho hệ thống RAG.
+
+Khởi chạy Python AI Service trước khi sử dụng các chức năng AI:
+
+```bash
+fastapi dev app/main.py --port 8000
+```
+
+Dịch vụ mặc định chạy tại:
+
+```text
+http://localhost:8000
+```
+
+### 6. Khởi chạy Backend
+
+Mở terminal tại thư mục gốc của Backend:
+
+```bash
+mvn clean compile
+mvn spring-boot:run
+```
+
+### 8. Kiểm tra hoạt động và tài liệu API
+
+Khi Backend khởi động thành công và xuất hiện thông báo tương tự:
+
+```text
+Started DocumentManagementApplication in ... seconds
+```
+
+Có thể truy cập các địa chỉ sau:
+
+* **API Base URL:** `http://localhost:10001/api/v1`
+* **Swagger UI:** `http://localhost:10001/swagger-ui/index.html`
+* **OpenAPI JSON:** `http://localhost:10001/v3/api-docs`
+
+
